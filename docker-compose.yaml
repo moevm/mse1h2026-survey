@@ -1,0 +1,86 @@
+networks:
+  survey_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: survey_postgres
+  pgadmin_data:
+    name: survey_pgadmin
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: dockerfiles/frontend.dockerfile
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    expose:
+      - 5173
+    networks:
+      - survey_network
+  
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfiles/backend.dockerfile
+    container_name: fastapi_app
+    expose:
+      - 8000
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - env/pgsql.env
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - survey_network
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+    networks:
+      - survey_network
+
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    env_file:
+      - env/pgsql.env
+    expose:
+      - 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - survey_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    env_file:
+      - env/pgadmin.env
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - survey_network

@@ -2,7 +2,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates, relationship
 from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from .database import Base
+from database import Base
 
 
 class Survey(Base):

@@ -23,17 +23,7 @@ class Survey(Base):
         DateTime,
         default=datetime.now
     )
-
-    # teacher_id: Mapped[Optional[int]] = mapped_column(
-    #     Integer, 
-    #     ForeignKey("teachers.id", ondelete="SET NULL"),
-    #     nullable=True
-    # )
-    # teacher: Mapped[Optional["Teacher"]] = relationship(
-    #     back_populates="surveys",
-    #     foreign_keys=[teacher_id]
-    # )
-
+    
     answers: Mapped[List["Answer"]] = relationship(
         back_populates="survey",
         cascade="all, delete-orphan"
@@ -56,17 +46,6 @@ class Answer(Base):
     )
 
     answers: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, default=list)
-
-
-# class Teacher(Base):
-#     __tablename__ = "teachers"
-
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-
-#     full_name: Mapped[str] = mapped_column(
-#         String(255),
-#         unique=True
-#     )
  
 
 class User(Base):

@@ -15,8 +15,8 @@ app = FastAPI()
 
 
 """Формат входящей и изходящей информации об опросах смотреть в schemas.py"""
-@app.get("/api/survey", response_model=SurveyResponce)
-def get_survey(id: int, db: Session = Depends(get_db)):
+@app.get("/survey/{id}", response_model=SurveyResponse)
+def get_survey(id:int, db:Session = Depends(get_db)):
     """Находит опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
@@ -26,8 +26,8 @@ def get_survey(id: int, db: Session = Depends(get_db)):
         )
     return survey
 
-@app.post("/api/survey", response_model=SurveyResponce)
-def post_survey(data: SurveyCreate, db:Session = Depends(get_db)):
+@app.post("/survey", response_model=SurveyResponse)
+def post_survey(data:SurveyCreate, db:Session = Depends(get_db)):
     """Создает сразу же активный опрос"""
     existing_survey = db.query(Survey).filter(Survey.title == data.title).first()
     if existing_survey:
@@ -45,14 +45,14 @@ def post_survey(data: SurveyCreate, db:Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            detail="Something goes wrong:{e}",
+            detail=f"Something goes wrong:{e}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-    return new_survey
+    return new_survey 
 
-@app.put("/api/survey", response_class=SurveyResponce)
-def put_survey(id, data: SurveyUpdate, db:Session = Depends(get_db)):
+@app.put("/survey/{id}", response_model=SurveyResponse)
+def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db)):
     """Обновляет данные опроса"""
     exist_survey = db.query(Survey).filter(Survey.id == id).first()
     if not exist_survey:
@@ -62,7 +62,7 @@ def put_survey(id, data: SurveyUpdate, db:Session = Depends(get_db)):
         )
     
     update_data = data.model_dump(exclude_unset=True)
-    for key, value in data.items():
+    for key, value in update_data.items():
         setattr(exist_survey, key, value)
 
     try:
@@ -71,13 +71,13 @@ def put_survey(id, data: SurveyUpdate, db:Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            detail="Something goes wrong:{e}",
+            detail=f"Something goes wrong:{e}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
     return exist_survey
 
-@app.delete("/api/survey")
+@app.delete("/survey/{id}")
 def delete_survey(id:int, db:Session = Depends(get_db)):
     """Удаляет опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
@@ -94,21 +94,90 @@ def delete_survey(id:int, db:Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            detail="Something goes wrong:{e}",
+            detail=f"Something goes wrong:{e}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
     return None
 
 
-@app.get("/api/survey/stat")
-def get_survey_stat(id:int, type:str):
-    pass
+@app.get("/answers/{id}", response_model=AnswerResponse)
+def get_answer(id:int, db:Session = Depends(get_db)):
+    """Находит ответ на опрос по ID"""
+    answer = db.query(Answer).filter(Answer.id == id).first()
 
-@app.put("/api/survey/stat")
-def put_survey_stat(id:int):
-    pass
+    if not answer:
+        raise HTTPException(
+            detail="Not found answer with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    return answer
 
-@app.delete("/api/survey/stat")
-def delete_survey_stat(id:int):
-    pass
+@app.post("/answers", response_model=AnswerResponse)
+def post_answer(data:AnswerCreate, db:Session = Depends(get_db)):
+    """Создает ответ на опрос"""
+    new_answer = Answer(**data.model_dump())
+    db.add(new_answer)
+
+    try:
+        db.commit()
+        db.refresh(new_answer)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            detail=f"Something goes wrong:{e}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    return new_answer
+
+@app.put("/answers/{id}", response_model=AnswerResponse)
+def put_answer(id:int, data:AnswerUpdate, db:Session = Depends(get_db)):
+    """Обновляет данные ответа"""
+    exist_answer = db.query(Answer).filter(Answer.id == id).first()
+    if not exist_answer:
+        raise HTTPException(
+            detail="Not found answer with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(exist_answer, key, value)
+
+    try:
+        db.commit()
+        db.refresh(exist_answer)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            detail=f"Something goes wrong:{e}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    return exist_answer
+
+@app.delete("/answers/{id}")
+def delete_answer(id:int, db:Session = Depends(get_db)):
+    """Удаляет ответ на опрос по ID"""
+    exist_answer = db.query(Answer).filter(Answer.id == id).first()
+
+    if not exist_answer:
+        raise HTTPException(
+            detail="Not found answer with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    db.delete(exist_answer)
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            detail=f"Something goes wrong:{e}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    return None

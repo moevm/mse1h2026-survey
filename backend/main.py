@@ -15,6 +15,21 @@ app = FastAPI()
 
 
 """Формат входящей и изходящей информации об опросах смотреть в schemas.py"""
+
+def get_all(db:Session = Depends(get_db)):
+    survey_list = db.query(Survey).all()
+    survey_count = db.query(Survey).count()
+    if not survey_list:
+        raise HTTPException(
+            detail="Not found any survey",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    return {
+        "count":survey_count,
+        "survey_list":survey_list
+    }
+
 @app.get("/survey/{id}", response_model=SurveyResponse)
 def get_survey(id:int, db:Session = Depends(get_db)):
     """Находит опрос по ID"""

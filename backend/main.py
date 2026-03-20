@@ -32,7 +32,6 @@ def get_all(db:Session = Depends(get_db)):
 
 @app.get("/survey/{id}", response_model=SurveyResponse)
 def get_survey(id:int, db:Session = Depends(get_db)):
-    """Находит опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
         raise HTTPException(
@@ -43,7 +42,6 @@ def get_survey(id:int, db:Session = Depends(get_db)):
 
 @app.post("/survey", response_model=SurveyResponse)
 def post_survey(data:SurveyCreate, db:Session = Depends(get_db)):
-    """Создает сразу же активный опрос"""
     existing_survey = db.query(Survey).filter(Survey.title == data.title).first()
     if existing_survey:
         raise HTTPException(
@@ -68,7 +66,6 @@ def post_survey(data:SurveyCreate, db:Session = Depends(get_db)):
 
 @app.put("/survey/{id}", response_model=SurveyResponse)
 def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db)):
-    """Обновляет данные опроса"""
     exist_survey = db.query(Survey).filter(Survey.id == id).first()
     if not exist_survey:
         raise HTTPException(
@@ -94,7 +91,6 @@ def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db)):
 
 @app.delete("/survey/{id}")
 def delete_survey(id:int, db:Session = Depends(get_db)):
-    """Удаляет опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
         raise HTTPException(
@@ -115,6 +111,21 @@ def delete_survey(id:int, db:Session = Depends(get_db)):
     
     return None
 
+
+def get_all_answers(id:int, db:Session = Depends(get_db)):
+    answers_list = db.query(Answer).filter(Answer.survey_id == id).all()
+    answers_count = db.query(Answer).filter(Answer.survey_id == id).count()
+
+    if not answers_list:
+        raise HTTPException(
+            detail="Not found any answers to this survey",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    
+    return {
+        "count": answers_count,
+        "answers_list": answers_list
+    }
 
 @app.get("/answers/{id}", response_model=AnswerResponse)
 def get_answer(id:int, db:Session = Depends(get_db)):

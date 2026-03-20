@@ -16,6 +16,7 @@ app = FastAPI()
 
 """Формат входящей и изходящей информации об опросах смотреть в schemas.py"""
 
+@app.get("/survey", response_model=SurveyList)
 def get_all(db:Session = Depends(get_db)):
     survey_list = db.query(Survey).all()
     survey_count = db.query(Survey).count()

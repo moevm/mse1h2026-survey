@@ -112,7 +112,7 @@ def delete_survey(id:int, db:Session = Depends(get_db)):
     
     return None
 
-
+@app.get("/survey/answers/{id}", response_model=AnswerList)
 def get_all_answers(id:int, db:Session = Depends(get_db)):
     answers_list = db.query(Answer).filter(Answer.survey_id == id).all()
     answers_count = db.query(Answer).filter(Answer.survey_id == id).count()

@@ -18,6 +18,11 @@ class SurveyResponse(BaseModel):
     lifetime_seconds: Optional[int] = None
     questions: list[dict]
 
+"""Лист со всеми опросами"""
+class SurveyList(BaseModel):
+    count: int
+    survey_list: list[SurveyResponse]
+
 """Схемма данных для обновления опроса"""
 class SurveyUpdate(BaseModel):
     title: Optional[str] = None

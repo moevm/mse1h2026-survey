@@ -44,6 +44,10 @@ class AnswerResponse(BaseModel):
     group: int
     answers: list[dict]
 
+class AnswerList(BaseModel):
+    count: int
+    answers_list: list[AnswerResponse]
+
 """Данные для обновления ответа на опрос"""
 class AnswerUpdate(BaseModel):
     survey_id: Optional[int] = None

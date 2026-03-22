@@ -1,9 +1,14 @@
 from sqlalchemy.orm import Mapped, mapped_column, validates, relationship
-from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey, Enum as SQLAlchemyEnum
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from database import Base
+import enum
 
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+    
 
 class Survey(Base):
     __tablename__ = "surveys"
@@ -19,11 +24,12 @@ class Survey(Base):
         Boolean,
         default=True
     )
+    
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.now
     )
-    
+
     answers: Mapped[List["Answer"]] = relationship(
         back_populates="survey",
         cascade="all, delete-orphan"
@@ -53,12 +59,12 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=True)
-
-    email: Mapped[str] = mapped_column(
+    username: Mapped[str] = mapped_column(
         String(255), 
         unique=True,
         index=True,
         nullable=False
     )
-    password_hash: Mapped[str] = mapped_column(String(255))
+    hashed_password: Mapped[str] = mapped_column(String)
+    
+    role: Mapped[UserRole] =  mapped_column(SQLAlchemyEnum(UserRole), default=UserRole.USER)

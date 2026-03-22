@@ -53,3 +53,12 @@ class AnswerUpdate(BaseModel):
     survey_id: Optional[int] = None
     group: Optional[int] = None
     answers: Optional[list[dict]] = None
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserRegister(BaseModel):
+    username: str
+    password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)

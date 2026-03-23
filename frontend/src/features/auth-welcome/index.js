@@ -1,0 +1,1 @@
+export { useGroupCode } from './model/useGroupCode'

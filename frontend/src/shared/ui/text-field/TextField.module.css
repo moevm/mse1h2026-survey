@@ -1,0 +1,51 @@
+.field {
+  --label-top: -8px;
+  --label-left: 12px;
+  --padding-inline: 4px;
+
+  --field-focus-color: #0055ff;
+  --field-color: #7b7b7b; 
+  --field-error-color: #ff4848;
+  --field-disabled-color: #dfdfdf;
+
+  --input-focus-color: var(--field-focus-color);
+  --input-error-color: var(--field-error-color);
+  --input-disable-color: var(--field-disabled-color);
+
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+}
+
+.field:focus-within {
+  --label-color: var(--field-focus-color);
+  --input-border-color: var(--field-focus-color);
+}
+
+.field[data-invalid="true"] {
+  --label-color: var(--field-error-color);
+  --input-border-color: var(--field-error-color);
+}
+
+.field[data-disabled="true"] {
+  --label-color: var(--field-disabled-color);
+  --input-border-color: var(--field-disabled-color);
+  cursor: not-allowed;
+}
+
+.labelFloating {
+  position: absolute;
+  top: var(--label-top);
+  left: var(--label-left);
+  padding-inline: var(--padding-inline);
+  background-color: var(--surface-color);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.errorMessage {
+  color: var(--field-error-color);
+  padding-inline: 16px;
+  font-size: 12px;
+}

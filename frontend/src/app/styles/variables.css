@@ -1,0 +1,19 @@
+:root {
+  --main-font: 'Inter', sans-serif;
+  --accent-color: #3067ff;
+  --background-color: #f4f4f4;
+  --surface-color: #fff;
+  
+  --font-weight-semibold: 600;
+  --font-weight-medium: 500;
+  --font-weight-regular: 400;
+  --font-weight-light: 300;
+
+  --decor-spot-primary: #c5f2ff;
+  --decor-spot-secondary: #f0c7ff;
+
+  --radio-border: #636363;
+  --radio-text: #636363;
+  --radio-accent: #3067ff;
+  --radio-error: #ff4848;
+}

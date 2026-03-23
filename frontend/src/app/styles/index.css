@@ -1,0 +1,30 @@
+@import "./reset.css";
+@import "./variables.css";
+@import "./fonts.css";
+
+body {
+  font-family: var(--main-font);
+  background-color: var(--background-color);
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  max-width: 1440px;
+  min-width: 375px;
+  min-height: 100vh;
+}
+
+[data-visually-hidden="true"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

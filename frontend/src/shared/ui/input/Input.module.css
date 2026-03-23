@@ -1,0 +1,28 @@
+.input {
+  outline: none;
+  border: 1px solid var(--input-border-color, #a3a3a3);
+  color: var(--input-color, #000);
+  background-color: var(--input-bg-color, transparent);
+  font-size: 16px;
+  line-height: 24px;
+  border-radius: 8px;
+  padding: 16px;
+  width: 100%;
+}
+
+.input::placeholder {
+  color: var(--input-placeholder-color, #7b7b7b);
+}
+
+.input:focus-visible {
+  --input-border-color: var(--input-focus-color, #0055ff);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  --input-border-color: var(--input-disable-color, #dfdfdf);
+}
+
+.input[aria-invalid="true"] {
+  --input-border-color: var(--input-error-color, #ff4848);
+}

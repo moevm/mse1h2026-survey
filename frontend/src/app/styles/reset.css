@@ -1,0 +1,58 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0px;
+}
+
+h1,
+h2, 
+h3, 
+h4, 
+h5, 
+h6, 
+p {
+  margin: 0px;
+  font-weight: normal;
+}
+
+ul, 
+ol {
+  margin: 0px;
+  padding: 0px;
+  list-style: none;
+}
+
+img, 
+picture {
+  margin: 0px;
+  padding: 0px;
+}
+
+fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-inline-size: unset;
+}
+
+legend {
+  padding: 0;
+  margin: 0;
+  float: left;
+  width: 100%;
+}
+
+a, 
+button {
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  background: none;
+  cursor: pointer;
+}

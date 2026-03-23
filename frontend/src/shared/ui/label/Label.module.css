@@ -1,0 +1,6 @@
+.label {
+  color: var(--label-color, #797979);
+  font-size: 12px;
+  line-height: 16px;
+  background-color: transparent;
+}

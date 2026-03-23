@@ -1,0 +1,1 @@
+export { useNavigateOnSubmit } from './useNavigateOnSubmit'

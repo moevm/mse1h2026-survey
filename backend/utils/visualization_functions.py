@@ -166,16 +166,29 @@ class SurveyVisualizer:
                         row[f'q_{q_id}'] = a.get('value')
                         break
             rows.append(row)
-        df = pd.DataFrame(rows)
+
+        base_columns = ['answer_id', 'survey_id', 'survey_title', 'group', 'created_at']
+        question_columns = []
+        for survey in self.surveys.values():
+            for q in survey.questions:
+                q_id = q.get('id')
+                question_columns.append(f'q_{q_id}')
+
+        all_columns = base_columns + question_columns
+        df = pd.DataFrame(rows, columns=all_columns)
+
         for survey in self.surveys.values():
             for q in survey.questions:
                 q_id = q.get('id')
                 col = f'q_{q_id}'
                 if col in df.columns and q.get('type') in ['number', 'integer', 'float']:
                     df[col] = pd.to_numeric(df[col], errors='coerce')
+
         return df
 
     def get_survey_data(self, survey_id: int) -> pd.DataFrame:
+        if 'survey_id' not in self.df.columns:
+            return pd.DataFrame(columns=self.df.columns)
         return self.df[self.df['survey_id'] == survey_id].copy()
 
     def get_question_values(self, survey_id: int, question_id: int) -> pd.Series:
@@ -480,5 +493,88 @@ class SurveyVisualizer:
         ax2.set_title('Процентное соотношение')
 
         plt.suptitle(f'Сравнение слов: {question_text}', fontweight='bold')
+        plt.tight_layout()
+        return fig
+
+    def plot_choice_by_group(self, survey_id: int, question_id: int, question_text: str,
+                             options: List[str] = None, normalize: bool = False,
+                             figsize: tuple = (12, 6), **kwargs) -> plt.Figure:
+        """
+        Столбчатая диаграмма распределения ответов по группам.
+
+        Args:
+            survey_id: ID опроса
+            question_id: ID вопроса
+            question_text: текст вопроса
+            options: полный список опций, чтобы показать даже отсутствующие ответы
+            normalize: если True, показывать проценты внутри каждой группы
+            figsize: размер графика
+
+        Returns:
+            matplotlib Figure
+        """
+        df = self.get_survey_data(survey_id)
+        col = f'q_{question_id}'
+
+        if df.empty or col not in df.columns:
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.text(0.5, 0.5, 'Нет данных для сравнения по группам',
+                    ha='center', va='center')
+            ax.axis('off')
+            return fig
+
+        plot_df = df[['group', col]].dropna()
+
+        if plot_df.empty:
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.text(0.5, 0.5, 'Нет данных для сравнения по группам',
+                    ha='center', va='center')
+            ax.axis('off')
+            return fig
+
+        cross = pd.crosstab(plot_df['group'], plot_df[col])
+
+        if options:
+            for opt in options:
+                if opt not in cross.columns:
+                    cross[opt] = 0
+            cross = cross.reindex(columns=options, fill_value=0)
+
+        cross = cross.sort_index()
+
+        if normalize:
+            cross_plot = cross.div(cross.sum(axis=1).replace(0, np.nan), axis=0).fillna(0) * 100
+            ylabel = 'Процент внутри группы'
+        else:
+            cross_plot = cross
+            ylabel = 'Количество ответов'
+
+        fig, ax = plt.subplots(figsize=figsize)
+        cross_plot.plot(
+            kind='bar',
+            ax=ax,
+            stacked=True,
+            **kwargs.get('plot_kwargs', {})
+        )
+
+        ax.set_title(f'{question_text}\nСравнение по группам')
+        ax.set_xlabel('Группа')
+        ax.set_ylabel(ylabel)
+        ax.legend(title='Ответ', bbox_to_anchor=(1.02, 1), loc='upper left')
+
+        # Подписи итогов над столбцами
+        totals = cross.sum(axis=1)
+        ymax = cross_plot.sum(axis=1).max()
+        offset = ymax * 0.02 if ymax > 0 else 0.5
+
+        for i, total in enumerate(totals):
+            if normalize:
+                ax.text(i, 100 + 1, f'n={int(total)}', ha='center', va='bottom', fontsize=9)
+                ax.set_ylim(0, max(105, ax.get_ylim()[1]))
+            else:
+                ax.text(i, cross_plot.sum(axis=1).iloc[i] + offset, f'n={int(total)}',
+                        ha='center', va='bottom', fontsize=9)
+
+        plt.suptitle(question_text, fontweight='bold')
         plt.tight_layout()
         return fig

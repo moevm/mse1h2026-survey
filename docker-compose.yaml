@@ -1,5 +1,5 @@
 networks:
-  survey_network:
+  internal_network:
     driver: bridge
 
 volumes:
@@ -19,7 +19,7 @@ services:
     expose:
       - 5173
     networks:
-      - survey_network
+      - internal_network
   
   backend:
     build:
@@ -38,7 +38,7 @@ services:
     volumes:
       - ./backend:/app/backend
     networks:
-      - survey_network
+      - internal_network
     restart: always
 
   nginx:
@@ -54,7 +54,7 @@ services:
       backend:
         condition: service_started
     networks:
-      - survey_network
+      - internal_network
 
   db:
     image: postgres:15
@@ -72,7 +72,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - survey_network
+      - internal_network
 
   db_test:
       image: postgres:15
@@ -87,7 +87,7 @@ services:
         timeout: 3s
         retries: 5
       networks:
-        - survey_network
+        - internal_network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -100,4 +100,4 @@ services:
       db:
         condition: service_healthy
     networks:
-      - survey_network
+      - internal_network

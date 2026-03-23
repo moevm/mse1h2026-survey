@@ -3,6 +3,32 @@ from typing import Optional
 
 """Здесь описанна структура входяших и исходящих данных"""
 
+class Question(BaseModel):
+    id_question: int
+    title: str
+    type: str
+
+class RadioButton(Question):
+    type: Literal["RadioButton"] = "RadioButton"
+    answers: list[str]
+
+class Checkbox(Question):
+    type: Literal["Checkbox"] = "Checkbox"  
+    answers: list[str]
+
+class FreeQuestion(Question):
+    type: Literal["FreeQuestion"] = "FreeQuestion"
+
+class ScaleQuestion(Question):
+    type: Literal["ScaleQuestion"] = "ScaleQuestion"
+    min_range: int
+    max_range: int
+    step: Optional[int] = 1
+
+class QuestionAnswer(BaseModel):
+    id_question: int
+    answer: list[str]
+
 """схемма данных для создания опроса"""
 class SurveyCreate(BaseModel):
     title: str

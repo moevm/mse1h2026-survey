@@ -1,0 +1,40 @@
+.item {
+  --current-border: var(--radio-border, #a3a3a3);
+  --current-dot: var(--radio-dot, transparent);
+  --label-color: var(--radio-text, #a3a3a3);
+  --accent: var(--radio-accent, #3067ff);
+
+  box-shadow: 0 0 0 1px var(--current-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.item:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.item[data-checked="true"] {
+  --current-border: var(--accent);
+  --current-dot: var(--accent);
+  --label-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+
+}
+
+.item[data-invalid="true"] {
+  --current-border: var(--radio-error, #ff4848);
+  --accent: var(--radio-error, #ff4848);
+  --label-color: var(--radio-error, #ff4848);
+}
+
+.label {
+  flex: 1;
+  font-size: 16px;
+  line-height: 24px;
+  word-break: break-word;
+}

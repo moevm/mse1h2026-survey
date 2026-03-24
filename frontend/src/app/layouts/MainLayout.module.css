@@ -20,3 +20,7 @@
 .wrapper[data-variant='survey'] .content {
   place-items: center;
 }
+
+.wrapper[data-variant='result'] .content {
+  place-items: center;
+}

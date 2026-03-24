@@ -1,0 +1,1 @@
+export { SurveyResultCard } from './SurveyResultCard'

@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom"
 import styles from './MainLayout.module.css'
 import { Header } from '../../widgets/header'
+import { Footer } from "../../widgets/footer"
 
 export const MainLayout = ({
   variant = 'default'
@@ -11,7 +12,7 @@ export const MainLayout = ({
       <main className={styles.content}>
         <Outlet />
       </main>
-      <footer></footer>
+      <Footer />
     </div>
   )
 }

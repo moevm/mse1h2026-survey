@@ -1,0 +1,39 @@
+.card {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+  aspect-ratio: 1 / 1;
+}
+
+.logo {
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  font-size: 20px;
+  text-align: center;
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text {
+  color: #505050;
+  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+  text-align: center;
+}
+
+.checkIcon {
+  max-width: 64px;
+  max-height: 64px;
+  object-fit: cover;
+  object-position: center;
+}

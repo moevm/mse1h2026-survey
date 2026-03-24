@@ -1,0 +1,24 @@
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  max-height: 300px;
+  border: 1px solid #7F7F7F;
+  border-radius: 16px;
+  padding: 15px 18px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.25);
+  outline: none;
+  color: #000;
+  font-size: 18px;
+  line-height: 22px;
+  background-color: #fff;
+  resize: vertical;
+}
+
+.textarea::placeholder {
+  color: #9b9b9b;
+}
+
+.textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -7,6 +7,6 @@ export const useNavigateOnSubmit = ({route}) => {
   //   navigate(`/${route}/${id}`)
   // }
   return () => {
-    navigate('/survey/1')
+    navigate(`/${route}`)
   }
 }

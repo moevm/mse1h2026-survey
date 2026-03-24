@@ -1,0 +1,1 @@
+export { useSubmitSurvey } from './model/useSubmitSurvey'

@@ -1,0 +1,17 @@
+.layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  gap: 40px;
+}
+
+.form {
+  max-width: 860px;
+  width: 100%;
+}
+.nav {
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+}

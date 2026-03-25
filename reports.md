@@ -220,10 +220,6 @@ docker compose down
 
 ### Скринкасты
 
-Скринкаст итерации 2
-
-[screen-cast-2.mp4](../../ffmpeg-2026-03-22-git-9c63742425-full_build/screen-cast-2.mp4)
-
 ---
 
 ### Запланированные задачи
@@ -333,6 +329,10 @@ docker compose down
 - прохождение опроса
 - отправку ответов
 - отображение страницы завершения
+
+Скринкаст итерации 2
+
+[screen-cast-2.mp4](../../ffmpeg-2026-03-22-git-9c63742425-full_build/screen-cast-2.mp4)
 
 ---
 

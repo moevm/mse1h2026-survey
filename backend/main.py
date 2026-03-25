@@ -8,7 +8,10 @@ from models import *
 from schemas import *
 from utils import auth
 from utils.permissions import RoleChecker
+from fastapi.middleware.cors import CORSMiddleware
 import contextlib
+
+Base.metadata.create_all(bind=engine)
 
 # dev-only code
 @contextlib.asynccontextmanager
@@ -16,23 +19,82 @@ async def lifespan(app: FastAPI):
     db: Session = next(get_db())
     try:
         admin_user = db.query(User).filter(User.username == "admin").first()
-        
+
         if not admin_user:
             hashed_pwd = auth.get_password_hash("admin")
-            
+
             new_admin = User(
                 username="admin",
                 hashed_password=hashed_pwd,
                 role=UserRole.ADMIN
             )
-            
+
             db.add(new_admin)
             db.commit()
             print("Администратор (admin/admin) успешно создан")
         else:
             print("Администратор уже существует")
+
+        default_survey = db.query(Survey).filter(Survey.id == 1).first()
+
+        if not default_survey:
+            survey = Survey(
+                id=1,
+                title="Опрос по качеству обучения",
+                description="Пожалуйста, ответьте на все 6 вопросов",
+                lifetime_seconds=None,
+                questions=[
+                    {
+                        "id": 1,
+                        "title": "Насколько понятен учебный материал?",
+                        "type": "scale",
+                        "min": 1,
+                        "max": 5,
+                        "step": 1
+                    },
+                    {
+                        "id": 2,
+                        "title": "Насколько удобно расписание занятий?",
+                        "type": "scale",
+                        "min": 1,
+                        "max": 5,
+                        "step": 1
+                    },
+                    {
+                        "id": 3,
+                        "title": "Как вы оцениваете работу преподавателя?",
+                        "type": "radio",
+                        "answers": ["Отлично", "Хорошо", "Удовлетворительно", "Плохо"]
+                    },
+                    {
+                        "id": 4,
+                        "title": "Насколько полезны практические задания?",
+                        "type": "radio",
+                        "answers": ["Очень полезны", "Скорее полезны", "Мало полезны", "Бесполезны"]
+                    },
+                    {
+                        "id": 5,
+                        "title": "Что вам больше всего нравится в обучении?",
+                        "type": "text"
+                    },
+                    {
+                        "id": 6,
+                        "title": "Что бы вы хотели улучшить?",
+                        "type": "text"
+                    }
+                ]
+            )
+
+            db.add(survey)
+            db.commit()
+            db.refresh(survey)
+            print("Опрос с id=1 успешно создан")
+        else:
+            print("Опрос с id=1 уже существует")
+
     except Exception as e:
-        print(f"Ошибка при создании админа: {e}")
+        db.rollback()
+        print(f"Ошибка при инициализации приложения: {e}")
     finally:
         db.close()
 
@@ -40,7 +102,23 @@ async def lifespan(app: FastAPI):
 
     print("Остановка приложения")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    root_path="/api"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 """Формат входящей и изходящей информации об опросах смотреть в schemas.py"""
 

@@ -1,5 +1,5 @@
 from pydantic import *
-from typing import Optional
+from typing import Optional, Literal
 
 """Здесь описанна структура входяших и исходящих данных"""
 
@@ -60,14 +60,14 @@ class SurveyUpdate(BaseModel):
 """Данные для создание отввета на опрос"""
 class AnswerCreate(BaseModel):
     survey_id: int
-    group: int
+    group: str
     answers: list[dict]
 
 """Данные об ответе от сервера"""
 class AnswerResponse(BaseModel):
     id: int
     survey_id: int
-    group: int
+    group: str
     answers: list[dict]
 
 class AnswerList(BaseModel):
@@ -77,7 +77,7 @@ class AnswerList(BaseModel):
 """Данные для обновления ответа на опрос"""
 class AnswerUpdate(BaseModel):
     survey_id: Optional[int] = None
-    group: Optional[int] = None
+    group: Optional[str] = None
     answers: Optional[list[dict]] = None
 
 class UserLogin(BaseModel):

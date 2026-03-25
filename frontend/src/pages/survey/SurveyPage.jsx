@@ -1,70 +1,44 @@
+import { useParams } from "react-router-dom";
 import { SurveyForm } from "../../widgets/survey-form";
 import { SurveyNavigation } from "../../widgets/survey-navigation";
-import { useSurveyAnswers } from "../../entities/survey";
-import styles from './SurveyPage.module.css'
-
-const MOCK_SURVEY = {
-  title: "Опросник для теста",
-  description: "Просим выбирать с умом",
-  questions: [
-    {
-      id: 1,
-      type: 'radio',
-      title: 'Вопрос radio 1',
-      answers: ['Да', 'Нет']
-    },
-    {
-      id: 2,
-      type: 'radio',
-      title: 'Вопрос radio 2',
-      answers: ['Да', 'Нет']
-    },
-    {
-      id: 3,
-      type: 'text',
-      title: 'Вопрос text 1',
-    },
-    {
-      id: 4,
-      type: 'text',
-      title: 'Вопрос text 2',
-    },
-    {
-      id: 5,
-      type: 'scale',
-      title: 'Вопрос scale 1',
-      min: 1,
-      max: 10,
-      step: 1
-    },
-    {
-      id: 6,
-      type: 'scale',
-      title: 'Вопрос scale 2',
-      min: 1,
-      max: 10,
-      step: 1
-    }
-  ]
-}
+import { useSurvey, useSurveyAnswers } from "../../entities/survey";
+import styles from "./SurveyPage.module.css";
 
 export const SurveyPage = () => {
-  const { answers, handleChange, isComplete } = useSurveyAnswers(MOCK_SURVEY.questions)
+  const { id } = useParams();
+  const { survey, isLoading, error } = useSurvey(id);
+
+  const questions = survey ? survey.questions : [];
+  const { answers, handleChange, isComplete } = useSurveyAnswers(questions);
+
+  if (isLoading) {
+    return <div>Загрузка...</div>;
+  }
+
+  if (error) {
+    return <div>Ошибка: {error.message || "Не удалось загрузить опрос"}</div>;
+  }
+
+  if (!survey) {
+    return <div>Опрос не найден</div>;
+  }
+
   return (
     <div className={styles.layout}>
-      <SurveyForm 
-        survey={MOCK_SURVEY}
+      <SurveyForm
+        survey={survey}
         answers={answers}
         onAnswerChange={handleChange}
         isComplete={isComplete}
         className={styles.form}
       />
+
       <div className={styles.nav}>
         <SurveyNavigation
-          questions={MOCK_SURVEY.questions}
+          questions={survey.questions}
           answers={answers}
         />
       </div>
     </div>
   );
-}
+};

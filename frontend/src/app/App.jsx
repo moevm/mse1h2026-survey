@@ -18,7 +18,7 @@ export function App() {
           <Route path="/home" element={<HomePage />} />
         </Route>
         <Route element={<MainLayout variant='survey' />}>
-          <Route path="/survey" element={<SurveyPage />} />
+          <Route path="/survey/:id" element={<SurveyPage />} />
         </Route>
         <Route element={<MainLayout variant='result' /> } >
           <Route path="/result" element={<SurveyResultPage />} />

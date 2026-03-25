@@ -11,7 +11,7 @@ export const SurveyForm = ({
   onAnswerChange,
   isComplete
 }) => {
-  const { handleSubmit } = useSubmitSurvey(answers, isComplete);
+  const { handleSubmit } = useSubmitSurvey(survey, answers, isComplete);
 
   const { 
     title,

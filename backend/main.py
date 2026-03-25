@@ -3,6 +3,7 @@ import json
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from database import engine, get_db, Base
 from models import *
 from schemas import *
@@ -106,6 +107,32 @@ app = FastAPI(
     lifespan=lifespan,
     root_path="/api"
 )
+
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    db_status = "up"
+    db_error = None
+
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = "down"
+        db_error = str(e)
+
+    overall_status = "ok" if db_status == "up" else "degraded"
+
+    return {
+        "status": overall_status,
+        "services": {
+            "backend": {
+                "status": "up"
+            },
+            "database": {
+                "status": db_status,
+                "error": db_error
+            }
+        }
+    }
 
 app.add_middleware(
     CORSMiddleware,

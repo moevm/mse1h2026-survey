@@ -8,6 +8,7 @@ import { SurveyPage } from '../pages/survey'
 import { MainLayout } from './layouts/MainLayout'
 import { HomePage } from '../pages/home/HomePage'
 import { SurveyResultPage } from '../pages/result'
+import { HealthPage } from "../pages/health/HealthPage";
 
 export function App() {
   return (
@@ -23,6 +24,7 @@ export function App() {
         <Route element={<MainLayout variant='result' /> } >
           <Route path="/result" element={<SurveyResultPage />} />
         </Route>
+        <Route path="/health" element={<HealthPage />} />
       </Routes>
     </BrowserRouter>
   )

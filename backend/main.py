@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 import uuid
+from utils.parser import parse_and_populate
 
 def run_migrations():
     alembic_cfg = Config("alembic.ini")
@@ -473,3 +474,27 @@ def delete_answer(id:int, db:Session = Depends(get_db), current_admin: User = De
         )
     
     return None
+
+
+@app.post("/import_from_sheets")
+def import_from_sheets(body: GoogleSheetsParse, db: Session = Depends(get_db)):
+    stats = parse_and_populate(url=str(body.url), session=db)
+    return stats
+
+
+@app.get("/data", response_model=list[ParsedDataRecord])
+def get_parsed_data(db: Session = Depends(get_db)):
+    rows = (
+        db.query(
+            Group.name.label("group"),
+            Teacher.name.label("teacher"),
+            Discipline.name.label("discipline"),
+        )
+        .join(GroupTeacherDiscipline, GroupTeacherDiscipline.group_id == Group.id)
+        .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
+        .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
+        .order_by(Group.name, Teacher.name, Discipline.name)
+        .all()
+    )
+
+    return [ParsedDataRecord(group=r.group, teacher=r.teacher, discipline=r.discipline) for r in rows]

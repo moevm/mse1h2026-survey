@@ -89,3 +89,11 @@ class UserRegister(BaseModel):
     username: str
     password: str = Field(..., min_length=8)
     confirm_password: str = Field(..., min_length=8)
+
+class GoogleSheetsParse(BaseModel):
+    url: str
+
+class ParsedDataRecord(BaseModel):
+    group: str
+    teacher: str
+    discipline: str

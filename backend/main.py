@@ -11,12 +11,43 @@ from utils import auth
 from utils.permissions import RoleChecker
 from fastapi.middleware.cors import CORSMiddleware
 import contextlib
+import time
+from sqlalchemy.exc import OperationalError
+from alembic.config import Config
+from alembic import command
+from fastapi import File, UploadFile, Form
+from fastapi.staticfiles import StaticFiles
+import os
+import shutil
+import uuid
 
-Base.metadata.create_all(bind=engine)
+def run_migrations():
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
 
-# dev-only code
+def init_db():
+    retries = 5
+    delay = 3
+
+    while retries > 0:
+        try:
+            with engine.begin() as conn:
+                pass
+            
+            run_migrations()
+            
+            return
+            
+        except OperationalError as e:
+            retries -= 1
+            if retries == 0:
+                raise
+            time.sleep(delay)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     db: Session = next(get_db())
     try:
         admin_user = db.query(User).filter(User.username == "admin").first()
@@ -107,6 +138,12 @@ app = FastAPI(
     lifespan=lifespan,
     root_path="/api"
 )
+
+UPLOAD_DIR = "uploads"
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
+    
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
@@ -232,16 +269,48 @@ def get_survey(id:int, db:Session = Depends(get_db)):
     return survey
 
 @app.post("/survey", response_model=SurveyResponse)
-def post_survey(data:SurveyCreate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
-    """Создает сразу же активный опрос"""
-    existing_survey = db.query(Survey).filter(Survey.title == data.title).first()
+def post_survey(
+    title: str = Form(...),
+    description: str = Form(...),
+    lifetime_seconds: Optional[int] = Form(None),
+    questions: str = Form(...),
+    photo: Optional[UploadFile] = File(None), 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
+):
+    """Создает опрос с опциональной загрузкой фото"""
+    
+    existing_survey = db.query(Survey).filter(Survey.title == title).first()
     if existing_survey:
         raise HTTPException(
             detail="Already exist survey with this title",
             status_code=status.HTTP_400_BAD_REQUEST
         )
+        
+    final_photo_path = None
+    if photo:
+        file_ext = photo.filename.split(".")[-1]
+        file_name = f"{uuid.uuid4()}.{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, file_name)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+        
+        final_photo_path = f"/{UPLOAD_DIR}/{file_name}"
+
+    try:
+        questions_list = json.loads(questions)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON format for questions")
+
+    new_survey = Survey(
+        title=title,
+        description=description,
+        lifetime_seconds=lifetime_seconds,
+        questions=questions_list,
+        photo_path=final_photo_path
+    )
     
-    new_survey = Survey(**data.model_dump())
     db.add(new_survey)
 
     try:
@@ -254,11 +323,13 @@ def post_survey(data:SurveyCreate, db:Session = Depends(get_db), current_admin: 
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
-    return new_survey 
+    return new_survey
+
 
 @app.put("/survey/{id}", response_model=SurveyResponse)
 def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     """Обновляет данные опроса"""
+    
     exist_survey = db.query(Survey).filter(Survey.id == id).first()
     if not exist_survey:
         raise HTTPException(
@@ -267,6 +338,10 @@ def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db), current_
         )
     
     update_data = data.model_dump(exclude_unset=True)
+    
+    if "photo_path" in update_data:
+        del update_data["photo_path"]
+
     for key, value in update_data.items():
         setattr(exist_survey, key, value)
 

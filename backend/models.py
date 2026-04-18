@@ -19,6 +19,7 @@ class Survey(Base):
     description: Mapped[str] = mapped_column(String(255))
     lifetime_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     questions: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, default=list)
+    photo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,

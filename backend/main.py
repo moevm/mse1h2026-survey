@@ -75,6 +75,7 @@ async def lifespan(app: FastAPI):
                 id=1,
                 title="Опрос по качеству обучения",
                 description="Пожалуйста, ответьте на все 6 вопросов",
+                groups=["3341","3342","3343"],
                 lifetime_seconds=None,
                 questions=[
                     {

@@ -25,6 +25,11 @@ class ScaleQuestion(Question):
     max_range: int
     step: Optional[int] = 1
 
+class BluePrintQuestion(BaseModel):
+    id: int
+    type: Literal["BluePrintQuestion"] = "BluePrintQuestion"
+    questions: list[dict] # здесь будут храниться заготовки вопросов. Форматы соответствуют RadioButton, Checkbox и тд
+
 class QuestionAnswer(BaseModel):
     id_question: int
     answer: list[str]

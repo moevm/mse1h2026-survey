@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, validates, relationship
-from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey, Enum as SQLAlchemyEnum, UniqueConstraint
+from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey, Enum as SQLAlchemyEnum, UniqueConstraint, ARRAY
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from database import Base
@@ -17,6 +17,7 @@ class Survey(Base):
 
     title: Mapped[str] = mapped_column(String(100), unique=True)
     description: Mapped[str] = mapped_column(String(255))
+    groups: Mapped[List[str]] = mapped_column(ARRAY(String(6)))
     lifetime_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     questions: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, default=list)
     photo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

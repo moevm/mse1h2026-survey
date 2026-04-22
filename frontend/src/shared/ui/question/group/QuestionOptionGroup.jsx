@@ -7,9 +7,10 @@ export const QuestionOptionGroup = ({
   id,
   error,
   disabled,
-  children
+  children,
+  className
 }) => {
-  const cardClasses = clsx(styles.card, {
+  const cardClasses = clsx(styles.card, className, {
     [styles.isInvalid]: !!error,
     [styles.isDisabled]: disabled,
   })

@@ -1,5 +1,3 @@
-import { useState } from 'react';
-// import { SurveyPassing } from "@widgets/survey-passing";
 import { SurveyResult } from "@widgets/survey-result";
 import { SpotLayout } from '@shared/ui/layouts/spot-layout';
 import { Header } from '@widgets/header';
@@ -8,13 +6,7 @@ import { Footer } from '@widgets/footer';
 import LogoIcon from "@shared/assets/icons/logo.svg?react";
 import { Container } from '@shared/ui/container';
 
-export const SurveyPage = () => {
-  const [isCompleted, setIsCompleted] = useState(true);
-
-  const handleFinish = () => {
-    setIsCompleted(true);
-  };
-
+export const SurveyResultPage = () => {
   return (
     <>
       <Header>
@@ -23,17 +15,11 @@ export const SurveyPage = () => {
         </Container>
       </Header>
       <Main>
-        {isCompleted ? (
-          <SpotLayout>
-            <Container>
-              <SurveyResult />
-            </Container>
-          </SpotLayout>
-        ) : (
-          <SpotLayout>
-
-          </SpotLayout>
-        )}
+        <SpotLayout>
+          <Container>
+            <SurveyResult />
+          </Container>
+        </SpotLayout>
       </Main>
       <Footer />
     </>

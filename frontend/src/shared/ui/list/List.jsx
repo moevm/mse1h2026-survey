@@ -9,7 +9,7 @@ export const List = ({children, className, ...props}) => {
   )
 }
 
-export const ItemList = (children, className, ...props) => {
+export const ItemList = ({children, className, ...props}) => {
   return (
     <li className={clsx(styles.item, className)} {...props}>
       {children}

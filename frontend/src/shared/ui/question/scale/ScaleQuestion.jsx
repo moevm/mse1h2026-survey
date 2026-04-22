@@ -1,6 +1,7 @@
 import { QuestionOptionGroup } from '../group/QuestionOptionGroup';
 import { Button } from '@shared/ui/button';
 import { List, ItemList } from '@shared/ui/list';
+import clsx from 'clsx'
 import styles from './ScaleQuestion.module.css'
 
 export const ScaleQuestion = ({

@@ -17,7 +17,9 @@ const schema = {
   submitText: 'Начать опрос'
 }
 
-export const AuthGroupForm = ({ onSubmit }) => {
+export const AuthGroupForm = ({ 
+  onSubmit 
+}) => {
   const [groupCode, setGroupCode] = useState('');
   const [error, setError] = useState('');
 

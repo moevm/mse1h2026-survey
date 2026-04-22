@@ -11,3 +11,14 @@
   padding: 10px;
   color: #000;
 }
+
+.isDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: not-allowed;
+  user-select: none;
+}
+
+.isDisabled input {
+  cursor: not-allowed;
+}

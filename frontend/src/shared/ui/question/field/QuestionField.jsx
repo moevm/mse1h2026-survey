@@ -9,10 +9,13 @@ export const QuestionField = ({
   disabled,
   id,
   children,
+  className,
   ...props
 }) => {
 
-  const cardClasses = clsx(styles.card, {
+  const cardClasses = clsx(
+    styles.card, 
+    styles.className, {
     [styles.isInvalid]: !!error,
     [styles.isDisabled]: disabled,
   });

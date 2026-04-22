@@ -1,0 +1,19 @@
+.containerFlex {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  width: 100%;
+}
+
+.sidebar {
+  position: sticky;
+  top: 20px;
+  flex-shrink: 0; 
+}
+
+.form {
+  max-width: 860px;
+  width: 100%;
+  flex-grow: 1;
+}

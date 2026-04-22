@@ -1,2 +1,3 @@
 export { HomePage } from './HomePage'
-export { SurveyPage} from './SurveyPage'
+export { SurveyPassingPage } from './SurveyPassingPage'
+export { SurveyResultPage } from './SurveyResultPage' 

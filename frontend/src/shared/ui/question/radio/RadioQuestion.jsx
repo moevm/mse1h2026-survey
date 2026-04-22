@@ -1,7 +1,6 @@
 import { RadioItem } from '@shared/ui/radio'
 import { List, ItemList } from '@shared/ui/list'
 import { QuestionOptionGroup } from '../group/QuestionOptionGroup'
-import styles from './RadioQuestion.module.css'
 
 export const RadioQuestion = ({
   title,
@@ -19,7 +18,7 @@ export const RadioQuestion = ({
       error={error}
       disabled={disabled}
     >
-      <List className={styles.answerList}>
+      <List>
         {answers.map((answer, idx) => {
           return (
             <ItemList style={{ width: '70%'}} key={answer}>

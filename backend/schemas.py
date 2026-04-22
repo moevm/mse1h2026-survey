@@ -95,10 +95,61 @@ class UserRegister(BaseModel):
     password: str = Field(..., min_length=8)
     confirm_password: str = Field(..., min_length=8)
 
-class GoogleSheetsParse(BaseModel):
+class SetGoogleSheetsLink(BaseModel):
     url: str
+    delete_old_data: bool
 
 class ParsedDataRecord(BaseModel):
     group: str
     teacher: str
     discipline: str
+
+class GroupBase(BaseModel):
+    name: str
+
+class GroupCreate(GroupBase):
+    pass
+
+class GroupResponse(GroupBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class TeacherBase(BaseModel):
+    name: str
+
+class TeacherCreate(TeacherBase):
+    pass
+
+class TeacherResponse(TeacherBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class DisciplineBase(BaseModel):
+    name: str
+
+class DisciplineCreate(DisciplineBase):
+    pass
+
+class DisciplineResponse(DisciplineBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupTeacherDisciplineBase(BaseModel):
+    group_id: int
+    teacher_id: int
+    discipline_id: int
+
+class GroupTeacherDisciplineCreate(GroupTeacherDisciplineBase):
+    pass
+
+class GroupTeacherDisciplineResponse(GroupTeacherDisciplineBase):
+    id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class AssignmentWithDetails(BaseModel):
+    id: int
+    group: GroupResponse
+    teacher: TeacherResponse
+    discipline: DisciplineResponse
+    model_config = ConfigDict(from_attributes=True)
+

@@ -1,7 +1,7 @@
 import style from './Input.module.css'
 
 export const Input = ({
-  className = '',
+  className,
   isError = false,
   disabled,
   ...props

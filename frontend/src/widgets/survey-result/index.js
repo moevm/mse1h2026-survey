@@ -1,0 +1,1 @@
+export { SurveyResult } from './SurveyResult'

@@ -1,0 +1,22 @@
+.card {
+  max-width: 480px;
+}
+
+.title {
+  font-weight: var(--font-weight-semibold);
+  font-size: 20px;
+  text-align: center;
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.text {
+  color: #505050;
+  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+  text-align: center;
+}

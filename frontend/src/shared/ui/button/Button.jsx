@@ -2,7 +2,7 @@ import styles from './Button.module.css'
 
 export const Button = ({
   children,
-  className = '',
+  className,
   ...props
 }) => {
   return (

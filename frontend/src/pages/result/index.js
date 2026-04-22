@@ -1,1 +1,0 @@
-export { SurveyResultPage} from './SurveyResultPage'

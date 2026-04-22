@@ -1,30 +1,19 @@
-import { 
-  BrowserRouter, 
+import {  
   Routes, 
   Route, 
-  Navigate 
+  Navigate,
+  BrowserRouter 
 } from 'react-router-dom'
-import { SurveyPage } from '../pages/survey'
-import { MainLayout } from './layouts/MainLayout'
-import { HomePage } from '../pages/home/HomePage'
-import { SurveyResultPage } from '../pages/result'
-import { HealthPage } from "../pages/health/HealthPage";
+import { HomePage } from '@pages'
+import { SurveyPage } from '@pages'
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
-        <Route element={<MainLayout variant='welcome' /> } >
-          <Route path="/home" element={<HomePage />} />
-        </Route>
-        <Route element={<MainLayout variant='survey' />}>
-          <Route path="/survey/:id" element={<SurveyPage />} />
-        </Route>
-        <Route element={<MainLayout variant='result' /> } >
-          <Route path="/result" element={<SurveyResultPage />} />
-        </Route>
-        <Route path="/health" element={<HealthPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/survey" element={<SurveyPage />} />
       </Routes>
     </BrowserRouter>
   )

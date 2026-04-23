@@ -8,6 +8,7 @@ from database import engine, get_db, Base
 from models import *
 from schemas import *
 from utils import auth
+from collections import defaultdict
 from utils.permissions import RoleChecker
 from fastapi.middleware.cors import CORSMiddleware
 import contextlib
@@ -244,6 +245,38 @@ def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db
     return {"message": "Успешный вход"}
 
 
+@app.get("/group_data/{group}")
+def get_data_by_group(group_id: str, db: Session = Depends(get_db)):
+    rows = (
+        db.query(
+            Group.name.label("group"),
+            Teacher.name.label("teacher"),
+            Discipline.name.label("discipline"),
+        )
+        .join(GroupTeacherDiscipline, GroupTeacherDiscipline.group_id == Group.id)
+        .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
+        .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
+        # Добавляем фильтрацию
+        .filter(Group.name == group_id) 
+        .order_by(Teacher.name, Discipline.name)
+        .all()
+    )
+
+    if not rows:
+        raise HTTPException(
+            detail="No data found for this group",
+            status_code=404
+        )
+
+    teachers_dict = defaultdict(list)
+    for r in rows:
+        teachers_dict[r.teacher].append(r.discipline)
+    
+    return {
+        "teachers": teachers_dict
+    }
+
+    
 @app.get("/survey", response_model=SurveyList)
 def get_all(db:Session = Depends(get_db)):
     survey_list = db.query(Survey).all()

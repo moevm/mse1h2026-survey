@@ -8,7 +8,6 @@ from fastapi import HTTPException
 
 from models import Group, Teacher, Discipline, GroupTeacherDiscipline
 
-TARGET_SHEETS = {"БАКАЛАВРЫ 2025-26", "МАГИСТРЫ 2025-26"}
 
 def extract_sheet_id(url: str) -> str:
     match = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", url)
@@ -18,6 +17,7 @@ def extract_sheet_id(url: str) -> str:
             detail=f"Не удалось найти ID таблицы в ссылке: {url}",
         )
     return match.group(1)
+
 
 def download_workbook(sheet_id: str) -> pd.ExcelFile:
     export_url = (
@@ -41,6 +41,7 @@ def download_workbook(sheet_id: str) -> pd.ExcelFile:
 
     return pd.ExcelFile(io.BytesIO(resp.content))
 
+
 def _clean_name(value) -> str:
     if pd.isna(value):
         return ""
@@ -48,6 +49,7 @@ def _clean_name(value) -> str:
     if s.endswith(".0") and s[:-2].isdigit():
         s = s[:-2]
     return s
+
 
 def _parse_groups(cell_value) -> list[str]:
     if pd.isna(cell_value):
@@ -58,6 +60,7 @@ def _parse_groups(cell_value) -> list[str]:
         if g and g.replace(" ", "").isalnum():
             groups.append(g)
     return groups
+
 
 def _parse_sheet(df: pd.DataFrame) -> list[dict]:
     records = []
@@ -80,14 +83,18 @@ def _parse_sheet(df: pd.DataFrame) -> list[dict]:
         last_teacher = teacher
         last_discipline = discipline
 
+        lesson_type = _clean_name(row.iloc[2])
+        discipline_full = f"{discipline} ({lesson_type})" if lesson_type else discipline
+
         groups = _parse_groups(row.iloc[3])
         if len(row) > 4:
             groups += _parse_groups(row.iloc[4])
 
         if groups:
-            records.append({"teacher": teacher, "discipline": discipline, "groups": groups})
+            records.append({"teacher": teacher, "discipline": discipline_full, "groups": groups})
 
     return records
+
 
 def _fetch_records(url: str) -> list[dict]:
     sheet_id = extract_sheet_id(url)
@@ -95,18 +102,17 @@ def _fetch_records(url: str) -> list[dict]:
 
     all_records: list[dict] = []
     for sheet_name in workbook.sheet_names:
-        if sheet_name not in TARGET_SHEETS:
-            continue
         df = workbook.parse(sheet_name, header=None)
         all_records.extend(_parse_sheet(df))
 
     if not all_records:
         raise HTTPException(
             status_code=422,
-            detail=f"Не найдены листы {TARGET_SHEETS} в таблице или они пустые.",
+            detail=f"Не найдены листы в таблице или они пустые.",
         )
 
     return all_records
+
 
 def _populate(records: list[dict], session: Session) -> dict:
     teacher_cache: dict[str, Teacher] = {t.name: t for t in session.query(Teacher).all()}
@@ -166,6 +172,7 @@ def _populate(records: list[dict], session: Session) -> dict:
         "disciplines": len(discipline_cache),
         "assignments": len(existing_triples),
     }
+
 
 def parse_and_populate(url: str, session: Session) -> dict:
     records = _fetch_records(url)

@@ -3,7 +3,7 @@ import json
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, delete
 from database import engine, get_db, Base
 from models import *
 from schemas import *
@@ -510,14 +510,71 @@ def delete_answer(id:int, db:Session = Depends(get_db), current_admin: User = De
     return None
 
 
+def clear_schedule_tables(db: Session, current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    try:
+        stats = {
+            "groups_deleted": db.query(Group).count(),
+            "teachers_deleted": db.query(Teacher).count(),
+            "disciplines_deleted": db.query(Discipline).count(),
+            "relations_deleted": db.query(GroupTeacherDiscipline).count()
+        }
+        
+        db.execute(delete(GroupTeacherDiscipline))
+        db.execute(delete(Group))
+        db.execute(delete(Teacher))
+        db.execute(delete(Discipline))
+        
+        db.commit()
+
+        return stats
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear data: {str(e)}"
+        )
+
+
+@app.post("/set_google_sheets_link")
+def set_google_sheets_link(data: SetGoogleSheetsLink, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    os.environ['GOOGLE_SHEETS_LINK'] = str(data.url)
+
+    if data.delete_old_data:
+        clear_schedule_tables(db)
+
+    return {
+        "url": str(data.url),
+        "status": "success"
+    }
+
+
+@app.get("/get_google_sheets_link")
+def get_google_sheets_link(current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    google_sheets_link = os.getenv('GOOGLE_SHEETS_LINK', default='')
+
+    return {
+        "link": google_sheets_link
+    }
+
+
 @app.post("/import_from_sheets")
-def import_from_sheets(body: GoogleSheetsParse, db: Session = Depends(get_db)):
-    stats = parse_and_populate(url=str(body.url), session=db)
+def import_from_sheets(db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    google_sheets_link = os.getenv('GOOGLE_SHEETS_LINK', default='')
+
+    if not google_sheets_link:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Ссылка на гугл таблицы не была установлена'
+        )
+    
+    stats = parse_and_populate(url=os.getenv('GOOGLE_SHEETS_LINK'), session=db)
+
     return stats
 
 
-@app.get("/data", response_model=list[ParsedDataRecord])
-def get_parsed_data(db: Session = Depends(get_db)):
+@app.get("/get_schedule_data", response_model=list[ParsedDataRecord])
+def get_schedule_data(db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     rows = (
         db.query(
             Group.name.label("group"),
@@ -532,3 +589,240 @@ def get_parsed_data(db: Session = Depends(get_db)):
     )
 
     return [ParsedDataRecord(group=r.group, teacher=r.teacher, discipline=r.discipline) for r in rows]
+
+
+@app.post("/clear_parsed_data")
+def clear_parsed_data(db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    stats = clear_schedule_tables(db)
+
+    return stats
+
+
+@app.post("/create_group", response_model=GroupResponse)
+def create_group(group: GroupCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_group = Group(name=group.name)
+    db.add(db_group)
+    try:
+        db.commit()
+        db.refresh(db_group)
+        return db_group
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Group with this name already exists")
+
+
+@app.get("/get_groups", response_model=List[GroupResponse])
+def get_groups(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    groups = db.query(Group).offset(skip).limit(limit).all()
+    return groups
+
+
+@app.get("/get_group/{group_id}", response_model=GroupResponse)
+def get_group(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return group
+
+
+@app.put("/update_group/{group_id}", response_model=GroupResponse)
+def update_group(group_id: int, group: GroupCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_group = db.query(Group).filter(Group.id == group_id).first()
+    if db_group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    db_group.name = group.name
+    try:
+        db.commit()
+        db.refresh(db_group)
+        return db_group
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Group with this name already exists")
+
+
+@app.delete("/delete_group/{group_id}")
+def delete_group(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    db.delete(group)
+    db.commit()
+    return {"message": "Group deleted successfully"}
+
+
+
+@app.post("/create_teacher/", response_model=TeacherResponse)
+def create_teacher(teacher: TeacherCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_teacher = Teacher(name=teacher.name)
+    db.add(db_teacher)
+    try:
+        db.commit()
+        db.refresh(db_teacher)
+        return db_teacher
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Teacher with this name already exists")
+
+
+@app.get("/get_teachers/", response_model=List[TeacherResponse])
+def get_teachers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    teachers = db.query(Teacher).offset(skip).limit(limit).all()
+    return teachers
+
+
+@app.get("/get_teacher/{teacher_id}", response_model=TeacherResponse)
+def get_teacher(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if teacher is None:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return teacher
+
+
+@app.put("/update_teacher/{teacher_id}", response_model=TeacherResponse)
+def update_teacher(teacher_id: int, teacher: TeacherCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if db_teacher is None:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    
+    db_teacher.name = teacher.name
+    try:
+        db.commit()
+        db.refresh(db_teacher)
+        return db_teacher
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Teacher with this name already exists")
+
+
+@app.delete("/delete_teacher/{teacher_id}")
+def delete_teacher(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
+    if teacher is None:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    
+    db.delete(teacher)
+    db.commit()
+    return {"message": "Teacher deleted successfully"}
+
+
+@app.post("/create_discipline/", response_model=DisciplineResponse)
+def create_discipline(discipline: DisciplineCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_discipline = Discipline(name=discipline.name)
+    db.add(db_discipline)
+    try:
+        db.commit()
+        db.refresh(db_discipline)
+        return db_discipline
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Discipline with this name already exists")
+
+
+@app.get("/get_disciplines/", response_model=List[DisciplineResponse])
+def get_disciplines(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    disciplines = db.query(Discipline).offset(skip).limit(limit).all()
+    return disciplines
+
+
+@app.get("/get_discipline/{discipline_id}", response_model=DisciplineResponse)
+def get_discipline(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
+    if discipline is None:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+    return discipline
+
+
+@app.put("/update_discipline/{discipline_id}", response_model=DisciplineResponse)
+def update_discipline(discipline_id: int, discipline: DisciplineCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    db_discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
+    if db_discipline is None:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+    
+    db_discipline.name = discipline.name
+    try:
+        db.commit()
+        db.refresh(db_discipline)
+        return db_discipline
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Discipline with this name already exists")
+
+
+@app.delete("/delete_discipline/{discipline_id}")
+def delete_discipline(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
+    if discipline is None:
+        raise HTTPException(status_code=404, detail="Discipline not found")
+    
+    db.delete(discipline)
+    db.commit()
+    return {"message": "Discipline deleted successfully"}
+
+
+@app.post("/create_assignment/", response_model=GroupTeacherDisciplineResponse)
+def create_assignment(assignment: GroupTeacherDisciplineCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    group = db.query(Group).filter(Group.id == assignment.group_id).first()
+    teacher = db.query(Teacher).filter(Teacher.id == assignment.teacher_id).first()
+    discipline = db.query(Discipline).filter(Discipline.id == assignment.discipline_id).first()
+    
+    if not group or not teacher or not discipline:
+        raise HTTPException(status_code=404, detail="Group, teacher, or discipline not found")
+    
+    db_assignment = GroupTeacherDiscipline(
+        group_id=assignment.group_id,
+        teacher_id=assignment.teacher_id,
+        discipline_id=assignment.discipline_id
+    )
+    db.add(db_assignment)
+    try:
+        db.commit()
+        db.refresh(db_assignment)
+        return db_assignment
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Assignment already exists")
+
+
+@app.get("/get_assignments/", response_model=List[AssignmentWithDetails])
+def get_assignments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignments = db.query(GroupTeacherDiscipline).offset(skip).limit(limit).all()
+    return assignments
+
+
+@app.get("/get_assignment/{assignment_id}", response_model=AssignmentWithDetails)
+def get_assignment(assignment_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignment = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.id == assignment_id).first()
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return assignment
+
+
+@app.delete("/delete_assignment/{assignment_id}")
+def delete_assignment(assignment_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignment = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.id == assignment_id).first()
+    if assignment is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    
+    db.delete(assignment)
+    db.commit()
+    return {"message": "Assignment deleted successfully"}
+
+
+@app.get("/groups/{group_id}/assignments", response_model=List[AssignmentWithDetails])
+def get_group_assignments(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.group_id == group_id).all()
+    return assignments
+
+
+@app.get("/teachers/{teacher_id}/assignments", response_model=List[AssignmentWithDetails])
+def get_teacher_assignments(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.teacher_id == teacher_id).all()
+    return assignments
+
+
+@app.get("/disciplines/{discipline_id}/assignments", response_model=List[AssignmentWithDetails])
+def get_discipline_assignments(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.discipline_id == discipline_id).all()
+    return assignments

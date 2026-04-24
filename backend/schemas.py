@@ -46,6 +46,7 @@ class SurveyResponse(BaseModel):
     id: int
     title: str
     description: str
+    groups:list[str]
     lifetime_seconds: Optional[int] = None
     questions: list[dict]
     photo_path: Optional[str] = None

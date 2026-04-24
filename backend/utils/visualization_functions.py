@@ -159,12 +159,13 @@ class SurveyVisualizer:
                 'group': ans.group,
                 'created_at': ans.created_at
             }
+            # Создаем словарь для ответов
+            answers_dict = {a.get('question_id'): a.get('value') for a in ans.answers}
+
             for q in survey.questions:
                 q_id = q.get('id')
-                for a in ans.answers:
-                    if a.get('question_id') == q_id:
-                        row[f'q_{q_id}'] = a.get('value')
-                        break
+                row[f'q_{q_id}'] = answers_dict.get(q_id)
+
             rows.append(row)
 
         base_columns = ['answer_id', 'survey_id', 'survey_title', 'group', 'created_at']
@@ -177,6 +178,10 @@ class SurveyVisualizer:
         all_columns = base_columns + question_columns
         df = pd.DataFrame(rows, columns=all_columns)
 
+        # Убираем дублирование колонок
+        df = df.loc[:, ~df.columns.duplicated()]
+
+        # Конвертируем числовые колонки
         for survey in self.surveys.values():
             for q in survey.questions:
                 q_id = q.get('id')

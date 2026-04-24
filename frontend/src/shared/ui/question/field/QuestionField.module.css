@@ -1,0 +1,24 @@
+.card {
+  max-width: 860px;
+  width: 100%;
+  gap: 12px;
+}
+
+.title {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: var(--font-weight-semibold);
+  padding: 10px;
+  color: #000;
+}
+
+.isDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: not-allowed;
+  user-select: none;
+}
+
+.isDisabled input {
+  cursor: not-allowed;
+}

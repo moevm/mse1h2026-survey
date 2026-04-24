@@ -1,1 +1,0 @@
-export { AuthWelcomeCard } from './AuthWelcomeCard'

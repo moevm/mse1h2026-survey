@@ -2,7 +2,7 @@ import styles from './Label.module.css'
 
 export const Label = ({
   children,
-  className='',
+  className,
   ...props
 }) => {
   const classes = `

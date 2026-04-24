@@ -1,27 +1,56 @@
-import { SurveyTitleCard } from "./ui/SurveyTitleCard"
-import { Question } from "../../entities/question"
-import { Button } from "../../shared/ui/button"
-import { useSubmitSurvey } from "../../features/submit-survey"
-import image from '../../../public/survey_title.svg'
+import { TitleCard } from '@shared/ui/card/TitleCard';
+import { Question } from '@shared/ui/question';
+import { Button } from '@shared/ui/button';
+import { request } from '@shared/api/axios';
+import image from '@shared/assets/images/survey_title.svg'
+import clsx from 'clsx'
 import styles from './SurveyForm.module.css'
 
 export const SurveyForm = ({ 
   survey,
   answers,
   onAnswerChange,
-  isComplete
+  isComplete,
+  onFinish,
+  className
 }) => {
-  const { handleSubmit } = useSubmitSurvey(survey, answers, isComplete);
-
   const { 
+    id,
     title,
     description,
     questions
   } = survey
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!isComplete) return;
+
+    const searchParams = new URLSearchParams(window.location.search)
+    const group = searchParams.get("group") || "";
+
+    const payload = {
+      survey_id: Number(id),
+      group,
+      answers: questions.map((question) => {
+        const value = answers[question.id];
+        return {
+          id_question: question.id,
+          answer: Array.isArray(value) ? value : [String(value ?? "")],
+        };
+      }),
+    };
+
+    try {
+      await request('POST', `/answers`, payload);
+      onFinish();
+    } catch (error) {
+      console.error("Ошибка при отправке ответов:", error);
+    }
+  }
+
   return (
-    <div className={styles.wrapper}> 
-      <SurveyTitleCard
+    <form className={clsx(styles.wrapper, className)} onSubmit={handleSubmit}> 
+      <TitleCard
         image={image}
         title={title}
         description={description}
@@ -31,7 +60,6 @@ export const SurveyForm = ({
           <Question
             key={question.id}
             {...question} 
-            questionId={question.id}
             value={answers[question.id]}
             onChange={(value) => onAnswerChange(question.id, value)}
           />
@@ -40,11 +68,10 @@ export const SurveyForm = ({
       <Button
         type="submit"
         disabled={!isComplete}
-        onClick={handleSubmit}
         className={styles.button} 
       >
         Закончить опрос
       </Button>
-    </div>
+    </form>
   );
 }

@@ -2,7 +2,7 @@ import styles from './Card.module.css';
 
 export const Card = ({
   children,
-  className = '',
+  className,
   as: Component = 'div',
   ...props
 }) => {

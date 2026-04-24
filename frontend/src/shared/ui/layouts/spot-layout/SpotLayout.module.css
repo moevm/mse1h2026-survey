@@ -1,0 +1,44 @@
+.wrapper {
+  --spot-blur: clamp(80px, 10vw, 150px);
+  --spot-primary: #c5f2ff;
+  --spot-secondary: #f0c7ff;
+
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+}
+
+.decor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.spot {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--spot-blur)) saturate(150%);
+}
+
+.spotPrimary {
+  top: 10%;
+  left: 10%;
+  width: 35vw;
+  max-width: 500px;
+  height: 30vw;
+  max-height: 400px;
+  background-color: var(--spot-primary);
+}
+
+.spotSecondary {
+  right: 5%;
+  bottom: 5%;
+  width: 40vw;
+  height: 30vw;
+  max-width: 600px;
+  max-height: 500px;
+  background-color: var(--spot-secondary);
+}

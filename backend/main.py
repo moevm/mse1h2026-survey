@@ -292,6 +292,19 @@ def get_all(db:Session = Depends(get_db)):
         "survey_list":survey_list
     }
 
+@app.get("/survey/group/{group}", response_model=SurveyList)
+def get_survey_by_group(group:str, db:Session= Depends(get_db)):
+    surveys= db.query(Survey).filter(Survey.groups.any(group)).all()
+    if not surveys:
+        raise HTTPException(
+            detail="Not found any surveys for this group", 
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    return {
+        "count":len(surveys),
+        "survey_list":surveys
+    }
+
 @app.get("/survey/{id}", response_model=SurveyResponse)
 def get_survey(id:int, db:Session = Depends(get_db)):
     """Находит опрос по ID"""

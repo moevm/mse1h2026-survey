@@ -278,8 +278,8 @@ def get_data_by_group(group_id: str, db: Session = Depends(get_db)):
 
     
 @app.get("/survey", response_model=SurveyList)
-def get_all(db:Session = Depends(get_db)):
-    survey_list = db.query(Survey).all()
+def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db)):
+    survey_list = db.query(Survey).offset((page - 1) * size).limit(size).all()
     survey_count = db.query(Survey).count()
     if not survey_list:
         raise HTTPException(

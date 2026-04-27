@@ -1,0 +1,114 @@
+.surveyCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  gap: 40px;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.info {
+  flex: 1;
+  text-align: left;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #000;
+  line-height: 1.3;
+}
+
+.description {
+  font-size: 14px;
+  color: #797979;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 12px;
+  padding-top: 16px;
+}
+
+.stats {
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.countLabel {
+  color: #797979;
+}
+
+.countValue {
+  font-weight: var(--font-weight-semi);
+  color: #000;
+}
+
+.actions {
+  display: flex;
+  width: 100%;
+  gap: 16px;
+}
+
+.surveyCard .iconBtn {
+  background-color: #fff;
+  border: 1px solid #eee;
+  box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.025);
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.editBtn {
+  flex: 1;
+  max-width: none;
+}
+
+.editBtn:hover {
+  background-color: #f7f7f7;
+  border-color: #e5e5e5;
+  filter: none;
+}
+
+.turnBtn, .deleteBtn {
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.turnBtn:hover {
+  background-color: #f7f7f7;
+  border-color: #e5e5e5;
+}
+
+
+.deleteBtn:hover .icon {
+  filter: invert(27%) sepia(100%) saturate(7432%) hue-rotate(354deg) brightness(104%) contrast(110%);
+  color: #ff0000;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  color: #000;
+}

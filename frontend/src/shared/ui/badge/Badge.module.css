@@ -1,0 +1,20 @@
+.badge {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  color: #000;
+}
+
+.active {
+  background-color: #e3ffde;
+}
+
+.closed {
+  background-color: #e65c66;
+}
+
+.pending {
+  background-color: #fff8c5;
+}

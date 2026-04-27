@@ -5,6 +5,7 @@ import { OptionItem } from './OptionItem'
 import styles from '../SurveyBuilder.module.css'
 
 const OptionsEditor = ({ options, onUpdate }) => {
+  const lastIsEmpty = options.length > 0 && options[options.length - 1].trim() === ''
   const handleAdd = () => onUpdate([...options, ''])
   const handleRemove = (idx) => onUpdate(options.filter((_, i) => i !== idx))
   const handleChange = (idx, value) => {
@@ -26,7 +27,7 @@ const OptionsEditor = ({ options, onUpdate }) => {
           />
         ))}
       </div>
-      <Button onClick={handleAdd} className={styles.addBtn}>
+      <Button onClick={handleAdd} className={styles.addBtn} disabled={lastIsEmpty}>
         + Добавить вариант
       </Button>
     </>

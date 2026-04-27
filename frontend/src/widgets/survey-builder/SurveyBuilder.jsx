@@ -70,10 +70,20 @@ export const SurveyBuilder = ({
   }, [initialData]);
 
   const isEditMode = Boolean(initialData?.id)
+
+  const hasEmptyOptions = survey.questions.some(q =>
+    ['radio', 'checkbox'].includes(q.type) &&
+    Array.isArray(q.options) &&
+    q.options.some(o => o.trim() === '')
+  )
+  const hasEmptyTitles = survey.questions.some(q => !q.title.trim())
+
   const isSubmitDisabled =
     !survey.title.trim() ||
     !survey.description.trim() ||
-    survey.questions.length === 0
+    survey.questions.length === 0 ||
+    hasEmptyTitles ||
+    hasEmptyOptions
 
   const updateMeta = (data) => setSurvey(prev => ({ ...prev, ...data }))
 

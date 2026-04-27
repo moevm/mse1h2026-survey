@@ -5,6 +5,8 @@ import { QuestionOptionGroup } from '../group/QuestionOptionGroup'
 export const RadioQuestion = ({
   title,
   id,
+  currentStep,
+  totalSteps,
   answers,
   value,
   onChange,
@@ -15,6 +17,8 @@ export const RadioQuestion = ({
     <QuestionOptionGroup
       title={title}
       id={id}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
       error={error}
       disabled={disabled}
     >

@@ -4,6 +4,8 @@ import styles from './TextQuestion.module.css'
 export const TextQuestion = ({
   title,
   id,
+  currentStep,
+  totalSteps,
   error,
   disabled,
   value,
@@ -14,6 +16,8 @@ export const TextQuestion = ({
     <QuestionField
       title={title}
       id={id}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
       error={error}
       disabled={disabled}
     >

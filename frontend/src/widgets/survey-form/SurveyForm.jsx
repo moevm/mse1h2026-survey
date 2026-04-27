@@ -60,6 +60,8 @@ export const SurveyForm = ({
           <Question
             key={question.id}
             {...question} 
+            currentStep={idx + 1}
+            totalSteps={questions.length}
             value={answers[question.id]}
             onChange={(value) => onAnswerChange(question.id, value)}
           />

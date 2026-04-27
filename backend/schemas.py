@@ -50,6 +50,7 @@ class SurveyResponse(BaseModel):
     lifetime_seconds: Optional[int] = None
     questions: list[dict]
     photo_path: Optional[str] = None
+    is_active: bool = True
 
 """Лист со всеми опросами"""
 class SurveyList(BaseModel):

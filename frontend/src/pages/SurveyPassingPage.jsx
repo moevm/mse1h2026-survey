@@ -47,7 +47,7 @@ export const SurveyPassingPage = () => {
   }, [uuid]);
 
   const handleFinish = () => {
-    navigate('/result')
+    navigate('../result')
   };
 
   if (isLoading) {

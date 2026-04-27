@@ -1,0 +1,41 @@
+.emptyCard {
+  max-width: 950px;
+  padding: 80px 40px; 
+  text-align: center;
+  margin: 0 auto;
+}
+
+.plusButton {
+  width: 120px;
+  height: 120px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 80px;
+  font-weight: 300;
+  line-height: 1;  
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #000;
+  margin: 0;
+}
+
+.description {
+  font-size: 16px;
+  color: var(--label-color, #797979);
+  max-width: 320px;
+  margin: 0 auto;
+}

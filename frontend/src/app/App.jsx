@@ -4,13 +4,16 @@ import {
   Navigate,
   BrowserRouter 
 } from 'react-router-dom'
+
 import { 
   SurveyPassingPage, 
   SurveyResultPage, 
   SurveyBuilderPage, 
   HealthPage, 
   DashBoardPage, 
-  HomePage
+  HomePage, 
+  LoginPage,
+  RegisterPage
 } from '@pages';
 
 export function App() {
@@ -28,6 +31,8 @@ export function App() {
           <Route path="home" element={<HomePage />} />
           <Route path="passing" element={<SurveyPassingPage />} />
           <Route path="result" element={<SurveyResultPage />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

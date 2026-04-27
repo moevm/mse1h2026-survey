@@ -4,8 +4,14 @@ import {
   Navigate,
   BrowserRouter 
 } from 'react-router-dom'
-import { HomePage } from '@pages'
-import { SurveyPassingPage, SurveyResultPage, DashBoardPage, HealthPage } from '@pages';
+import { 
+  SurveyPassingPage, 
+  SurveyResultPage, 
+  SurveyBuilderPage, 
+  HealthPage, 
+  DashBoardPage, 
+  HomePage
+} from '@pages';
 
 export function App() {
   const pathParts = window.location.pathname.match(/\/survey\/([^/]+)/);
@@ -14,6 +20,8 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/dashboard" element={<DashBoardPage />} />
+        <Route path="/builder" element={<SurveyBuilderPage />} />
+        <Route path="/builder/:id" element={<SurveyBuilderPage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path={`/survey/${uuid}`}>
           <Route index element={<Navigate to={`/survey/${uuid}/home`} replace />} />

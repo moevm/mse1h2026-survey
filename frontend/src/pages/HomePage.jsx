@@ -11,7 +11,7 @@ import LogoIcon from "@shared/assets/icons/logo.svg?react";
 export const HomePage = () => {
   const navigate = useNavigate()
   const onSubmit = (groupCode) => {
-    navigate(`/passing?group=${groupCode}`)
+    navigate(`../passing?group=${groupCode}`)
   }
 
   return (

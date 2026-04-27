@@ -1,0 +1,30 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+  background-color: transparent;
+}
+
+.leftSide {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+}
+
+.middleSide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.rightSide {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px
+}

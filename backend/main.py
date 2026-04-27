@@ -322,6 +322,8 @@ def post_survey(
     description: str = Form(...),
     lifetime_seconds: Optional[int] = Form(None),
     questions: str = Form(...),
+    groups: str = Form("[]"),
+    is_active: bool = Form(True),
     photo: Optional[UploadFile] = File(None), 
     db: Session = Depends(get_db),
     current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
@@ -348,6 +350,7 @@ def post_survey(
 
     try:
         questions_list = json.loads(questions)
+        groups_list = json.loads(groups)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON format for questions")
 
@@ -356,6 +359,8 @@ def post_survey(
         description=description,
         lifetime_seconds=lifetime_seconds,
         questions=questions_list,
+        groups=groups_list,
+        is_active=is_active,
         photo_path=final_photo_path
     )
     

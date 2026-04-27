@@ -12,6 +12,12 @@
   color: #000;
 }
 
+.stepsBlock {
+  margin-top: 30px;
+  font-size: 18px;
+  color: #acacac
+}
+
 .isDisabled {
   opacity: 0.5;
   cursor: not-allowed;

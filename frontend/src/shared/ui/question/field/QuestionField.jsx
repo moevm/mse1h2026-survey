@@ -8,6 +8,8 @@ export const QuestionField = ({
   error,
   disabled,
   id,
+  currentStep,
+  totalSteps,
   children,
   className,
   ...props
@@ -27,9 +29,10 @@ export const QuestionField = ({
       {...props}
     >
       <Label htmlFor={id} className={styles.title}>
-        {title}
+        {`${currentStep}. ${title}`}
       </Label>
       {children}
+      <span className={styles.stepsBlock}>Вопрос {currentStep} из {totalSteps}</span>
     </Card>
   )
 }

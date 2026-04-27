@@ -7,6 +7,8 @@ import styles from './ScaleQuestion.module.css'
 export const ScaleQuestion = ({
   title,
   id,
+  currentStep,
+  totalSteps,
   error,
   disabled,
   min,
@@ -25,6 +27,8 @@ export const ScaleQuestion = ({
     <QuestionOptionGroup
       title={title}
       id={id}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
       error={error}
       disabled={disabled}
       className={className}

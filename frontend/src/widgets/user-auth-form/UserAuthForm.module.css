@@ -1,0 +1,41 @@
+.wrapper {
+    width: 50vw;
+    max-width: 500px;
+  margin: 0 auto;
+  
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* Расстояние между заголовком, полями и кнопкой */
+}
+
+.title {
+  font-size: 24px;
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* Расстояние между TextField */
+}
+
+.footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--field-color);
+}
+
+.link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+}
+
+.link:hover {
+  text-decoration: underline;
+}

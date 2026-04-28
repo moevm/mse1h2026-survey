@@ -6,12 +6,12 @@ import { Button } from '@shared/ui/button';
 import { Card } from '@shared/ui/card';
 import styles from './UserAuthForm.module.css';
 
-export const UserAuthForm = ({ mode = 'login' }) => {
+export const UserAuthForm = ({ mode = 'login', onSubmit }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
-    confirmPassword: ''
+    confirm_password: ''
   });
   const [error, setError] = useState('');
 
@@ -19,7 +19,7 @@ export const UserAuthForm = ({ mode = 'login' }) => {
 
 
   useEffect(() => {
-    if (!isLogin && formData.confirmPassword && formData.password !== formData.confirmPassword) {
+    if (!isLogin && formData.confirm_password && formData.password !== formData.confirm_password) {
       setError('Пароли не совпадают');
     } else {
       setError('');
@@ -33,7 +33,7 @@ export const UserAuthForm = ({ mode = 'login' }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!isLogin && formData.password !== formData.confirmPassword) {
+    if (!isLogin && formData.password !== formData.confirm_password) {
       setError('Пароли должны совпадать!');
       return;
     }
@@ -41,11 +41,7 @@ export const UserAuthForm = ({ mode = 'login' }) => {
     setIsLoading(true);
     console.log('Sending data:', formData);
 
-    // Имитация запроса
-    setTimeout(() => {
-      setIsLoading(false);
-      alert(isLogin ? 'Вход...' : 'Регистрация...');
-    }, 2000);
+    onSubmit(formData);
   };
 
   return (
@@ -58,11 +54,11 @@ export const UserAuthForm = ({ mode = 'login' }) => {
 
         <div className={styles.fields}>
           <TextField
-            id="email"
-            type="email"
-            label="Email"
-            placeholder="example@mail.com"
-            value={formData.email}
+            id="username"
+            type="text"
+            label="username"
+            placeholder="admin"
+            value={formData.username}
             onChange={handleChange}
             disabled={isLoading}
             required
@@ -81,11 +77,11 @@ export const UserAuthForm = ({ mode = 'login' }) => {
 
           {!isLogin && (
             <TextField
-              id="confirmPassword"
+              id="confirm_password"
               type="password"
               label="Подтверждение пароля"
               placeholder="••••••••"
-              value={formData.confirmPassword}
+              value={formData.confirm_password}
               onChange={handleChange}
               disabled={isLoading}
               error={error} 

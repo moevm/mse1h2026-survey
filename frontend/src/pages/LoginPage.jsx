@@ -5,8 +5,20 @@ import { Footer } from '@widgets/footer';
 import { Container } from '@shared/ui/container';
 import { UserAuthForm } from '@widgets/user-auth-form';
 import LogoIcon from "@shared/assets/icons/logo.svg?react";
+import { request } from '@shared/api/axios';
+import { useNavigate } from 'react-router-dom';
 
 export const LoginPage = () => {
+  const navigate = useNavigate();
+  const onSubmit = async (data) => {
+    try{
+      await request("POST", "/login", data);
+      navigate("/dashboard");
+    }
+    catch(e){
+
+    }
+  }
   return (
     <>
       <Header>
@@ -17,7 +29,7 @@ export const LoginPage = () => {
       <Main style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <SpotLayout>
           <Container>
-            <UserAuthForm mode="login" />
+            <UserAuthForm mode="login" onSubmit={onSubmit} />
           </Container>
         </SpotLayout>
       </Main>

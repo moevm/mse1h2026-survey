@@ -4,13 +4,16 @@ import {
   Navigate,
   BrowserRouter 
 } from 'react-router-dom'
+
 import { 
   SurveyPassingPage, 
   SurveyResultPage, 
   SurveyBuilderPage, 
   HealthPage, 
   DashBoardPage, 
-  HomePage
+  HomePage, 
+  LoginPage,
+  RegisterPage
 } from '@pages';
 
 export function App() {
@@ -23,6 +26,8 @@ export function App() {
         <Route path="/builder" element={<SurveyBuilderPage />} />
         <Route path="/builder/:id" element={<SurveyBuilderPage />} />
         <Route path="/health" element={<HealthPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path={`/survey/${uuid}`}>
           <Route index element={<Navigate to={`/survey/${uuid}/home`} replace />} />
           <Route path="home" element={<HomePage />} />

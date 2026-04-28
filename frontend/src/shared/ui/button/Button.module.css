@@ -23,3 +23,13 @@
 .button:active {
   transform: scale(0.98);
 }
+
+
+.button:disabled {
+  background-color: #BDC3C7; 
+  color: #F4F4F4;
+  cursor: not-allowed;
+  filter: none; 
+  transform: none;
+  box-shadow: none;
+}

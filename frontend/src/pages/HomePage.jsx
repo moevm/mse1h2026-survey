@@ -29,7 +29,7 @@ export const HomePage = () => {
             }}>Log in</Button>
         </Container>
       </Header>
-      <Main>
+      <Main style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <SpotLayout>
           <Container>
             <AuthGroupForm onSubmit={onSubmit}/>

@@ -23,6 +23,21 @@ import shutil
 import uuid
 from utils.parser import parse_and_populate
 
+DEFAULT_SCHEDULE_RECORDS = [
+    {"teacher": "Иванов Сергей Петрович", "discipline": "Алгоритмы и структуры данных", "groups": ["3341"]},
+    {"teacher": "Иванов Сергей Петрович", "discipline": "Основы программирования", "groups": ["3341"]},
+    {"teacher": "Смирнова Анна Викторовна", "discipline": "Дискретная математика", "groups": ["3341"]},
+    {"teacher": "Кузнецов Дмитрий Олегович", "discipline": "Базы данных", "groups": ["3341"]},
+    {"teacher": "Кузнецов Дмитрий Олегович", "discipline": "Проектирование информационных систем", "groups": ["3341"]},
+    {"teacher": "Кузнецов Дмитрий Олегович", "discipline": "Веб-разработка", "groups": ["3341"]},
+    {"teacher": "Петрова Мария Андреевна", "discipline": "Линейная алгебра", "groups": ["1303"]},
+    {"teacher": "Петрова Мария Андреевна", "discipline": "Математический анализ", "groups": ["1303"]},
+    {"teacher": "Васильев Алексей Николаевич", "discipline": "Физика", "groups": ["1303"]},
+    {"teacher": "Васильев Алексей Николаевич", "discipline": "Теоретическая механика", "groups": ["1303"]},
+    {"teacher": "Васильев Алексей Николаевич", "discipline": "Компьютерное моделирование", "groups": ["1303"]},
+    {"teacher": "Соколова Елена Игоревна", "discipline": "Иностранный язык", "groups": ["1303"]},
+]
+
 def run_migrations():
     alembic_cfg = Config("alembic.ini")
     command.upgrade(alembic_cfg, "head")
@@ -45,6 +60,84 @@ def init_db():
             if retries == 0:
                 raise
             time.sleep(delay)
+
+
+def seed_default_schedule(db: Session):
+    seed_groups = {group for record in DEFAULT_SCHEDULE_RECORDS for group in record["groups"]}
+
+    group_ids = [
+        group_id for (group_id,) in db.query(Group.id).filter(Group.name.in_(seed_groups)).all()
+    ]
+
+    if group_ids:
+        db.query(GroupTeacherDiscipline).filter(
+            GroupTeacherDiscipline.group_id.in_(group_ids)
+        ).delete(synchronize_session=False)
+
+    for record in DEFAULT_SCHEDULE_RECORDS:
+        teacher = db.query(Teacher).filter(Teacher.name == record["teacher"]).first()
+        if not teacher:
+            teacher = Teacher(name=record["teacher"])
+            db.add(teacher)
+            db.flush()
+
+        discipline = db.query(Discipline).filter(Discipline.name == record["discipline"]).first()
+        if not discipline:
+            discipline = Discipline(name=record["discipline"])
+            db.add(discipline)
+            db.flush()
+
+        for group_name in record["groups"]:
+            group = db.query(Group).filter(Group.name == group_name).first()
+            if not group:
+                group = Group(name=group_name)
+                db.add(group)
+                db.flush()
+
+            exists = db.query(GroupTeacherDiscipline).filter(
+                GroupTeacherDiscipline.group_id == group.id,
+                GroupTeacherDiscipline.teacher_id == teacher.id,
+                GroupTeacherDiscipline.discipline_id == discipline.id,
+            ).first()
+
+            if not exists:
+                db.add(GroupTeacherDiscipline(
+                    group_id=group.id,
+                    teacher_id=teacher.id,
+                    discipline_id=discipline.id,
+                ))
+
+    db.commit()
+
+    db.query(Teacher).filter(~Teacher.assignments.any(), Teacher.name.like("препод%")).delete(
+        synchronize_session=False
+    )
+    db.query(Discipline).filter(~Discipline.assignments.any(), Discipline.name.like("предмет%")).delete(
+        synchronize_session=False
+    )
+    db.query(Teacher).filter(~Teacher.assignments.any(), Teacher.name.in_([
+        "Иванов Сергей Петрович",
+        "Смирнова Анна Викторовна",
+        "Кузнецов Дмитрий Олегович",
+        "Петрова Мария Андреевна",
+        "Васильев Алексей Николаевич",
+        "Соколова Елена Игоревна",
+    ])).delete(synchronize_session=False)
+    db.query(Discipline).filter(~Discipline.assignments.any(), Discipline.name.in_([
+        "Алгоритмы и структуры данных",
+        "Основы программирования",
+        "Дискретная математика",
+        "Базы данных",
+        "Проектирование информационных систем",
+        "Веб-разработка",
+        "Линейная алгебра",
+        "Математический анализ",
+        "Физика",
+        "Теоретическая механика",
+        "Компьютерное моделирование",
+        "Иностранный язык",
+    ])).delete(synchronize_session=False)
+    db.commit()
 
 
 @contextlib.asynccontextmanager
@@ -126,6 +219,8 @@ async def lifespan(app: FastAPI):
             print("Опрос с id=1 успешно создан")
         else:
             print("Опрос с id=1 уже существует")
+
+        seed_default_schedule(db)
 
     except Exception as e:
         db.rollback()

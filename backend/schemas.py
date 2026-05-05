@@ -61,6 +61,7 @@ class SurveyList(BaseModel):
 class SurveyUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    groups: Optional[list[str]] = None
     lifetime_seconds: Optional[int] = None
     questions: Optional[list[dict]] = None
     is_active: Optional[bool] = None

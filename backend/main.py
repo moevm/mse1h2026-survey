@@ -246,7 +246,7 @@ def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db
 
 
 @app.get("/group_data/{group}")
-def get_data_by_group(group_id: str, db: Session = Depends(get_db)):
+def get_data_by_group(group: str, db: Session = Depends(get_db)):
     rows = (
         db.query(
             Group.name.label("group"),
@@ -257,7 +257,7 @@ def get_data_by_group(group_id: str, db: Session = Depends(get_db)):
         .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
         .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
         # Добавляем фильтрацию
-        .filter(Group.name == group_id) 
+        .filter(Group.name == group)
         .order_by(Teacher.name, Discipline.name)
         .all()
     )

@@ -17,7 +17,7 @@ export const QuestionField = ({
 
   const cardClasses = clsx(
     styles.card, 
-    styles.className, {
+    className, {
     [styles.isInvalid]: !!error,
     [styles.isDisabled]: disabled,
   });

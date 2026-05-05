@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiArrowLeftLongLine } from 'react-icons/ri'
 import { Input } from '@shared/ui/input'
@@ -45,45 +45,50 @@ const SurveyHeaderEdit = ({ title, description, isActive, onChange }) => (
   </Card>
 )
 
+const getInitialSurvey = (initialData) => ({
+  title: initialData?.title || '',
+  description: initialData?.description || '',
+  isActive: initialData?.is_active ?? false,
+  questions: initialData?.questions || [],
+  groups: initialData?.groups || ['3341']
+})
+
+const hasInvalidListOptions = (question) => (
+  ['radio', 'checkbox'].includes(question.type) &&
+  (
+    !Array.isArray(question.options) ||
+    question.options.length === 0 ||
+    question.options.some(option => !String(option).trim())
+  )
+)
+
+const isInvalidQuestion = (question) => {
+  if (question.type === 'blueprint') {
+    const blueprintQuestions = Array.isArray(question.options) ? question.options : []
+    return (
+      blueprintQuestions.length === 0 ||
+      blueprintQuestions.some(item => !String(item.title ?? '').trim() || hasInvalidListOptions(item))
+    )
+  }
+
+  return !String(question.title ?? '').trim() || hasInvalidListOptions(question)
+}
+
 export const SurveyBuilder = ({
   initialData
 }) => {
   const navigate = useNavigate()
-  const [survey, setSurvey] = useState({
-    title: '',
-    description: '',
-    isActive: false,
-    questions: [],
-    groups: ['3341']
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setSurvey({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        isActive: initialData.is_active ?? false,
-        questions: initialData.questions || [],
-        groups: initialData.groups || ['3341']
-      });
-    }
-  }, [initialData]);
+  const [survey, setSurvey] = useState(() => getInitialSurvey(initialData))
 
   const isEditMode = Boolean(initialData?.id)
 
-  const hasEmptyOptions = survey.questions.some(q =>
-    ['radio', 'checkbox'].includes(q.type) &&
-    Array.isArray(q.options) &&
-    q.options.some(o => o.trim() === '')
-  )
-  const hasEmptyTitles = survey.questions.some(q => !q.title.trim())
+  const hasInvalidQuestions = survey.questions.some(isInvalidQuestion)
 
   const isSubmitDisabled =
     !survey.title.trim() ||
     !survey.description.trim() ||
     survey.questions.length === 0 ||
-    hasEmptyTitles ||
-    hasEmptyOptions
+    hasInvalidQuestions
 
   const updateMeta = (data) => setSurvey(prev => ({ ...prev, ...data }))
 
@@ -143,7 +148,9 @@ export const SurveyBuilder = ({
       navigate('/dashboard');
     } catch (err) {
       console.error("Save error:", err);
-      const errorMsg = err.response?.data?.detail;
+      const errorMsg = typeof err === 'string'
+        ? err
+        : err?.response?.data?.detail;
       alert(
         typeof errorMsg === 'string' 
           ? errorMsg 

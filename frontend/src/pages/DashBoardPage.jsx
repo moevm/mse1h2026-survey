@@ -50,7 +50,12 @@ export const DashBoardPage = () => {
 
   const handleToggle = async (id) => {
     try {
-      await request('PUT', `/survey/${id}`)
+      const targetSurvey = surveys.find((survey) => survey.id === id)
+      if (!targetSurvey) return
+
+      await request('PUT', `/survey/${id}`, {
+        is_active: !targetSurvey.is_active
+      })
       setSurveys((prevSurveys) => 
         prevSurveys.map((survey) => 
           survey.id === id 
@@ -62,6 +67,14 @@ export const DashBoardPage = () => {
       console.error(err)
       setError(err)
     }
+  }
+
+  if (isLoading) {
+    return null
+  }
+
+  if (error) {
+    return <div>{String(error)}</div>
   }
 
   return (

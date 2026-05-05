@@ -34,7 +34,7 @@ export const ScaleQuestion = ({
       className={className}
     >
       <List className={styles.scaleList}>
-        {items.map((item, idx) => {
+        {items.map((item) => {
           const buttonClass = clsx(styles.scaleButton, {
             [styles.scaleButtonSelected]: value === item
           })

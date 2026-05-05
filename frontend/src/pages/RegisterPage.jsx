@@ -15,8 +15,8 @@ export const RegisterPage = () => {
         await request("POST", "/register", data);
         navigate("/dashboard");
       }
-      catch(e){
-  
+      catch(error){
+        console.error(error);
       }
     }
   return (

@@ -75,8 +75,10 @@ const editorMap = {
   blueprint: BlueprintEditor,
 }
 
+const EmptyEditor = () => null
+
 export const Editor = ({ type, options, onUpdate }) => {
-  const Component = editorMap[type] ?? (() => null)
+  const Component = editorMap[type] ?? EmptyEditor
   let safeOptions = options;
 
   if (type === 'scale') {

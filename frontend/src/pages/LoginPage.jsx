@@ -15,8 +15,8 @@ export const LoginPage = () => {
       await request("POST", "/login", data);
       navigate("/dashboard");
     }
-    catch(e){
-
+    catch(error){
+      console.error(error);
     }
   }
   return (

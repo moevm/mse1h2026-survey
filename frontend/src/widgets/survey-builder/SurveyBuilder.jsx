@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiArrowLeftLongLine } from 'react-icons/ri'
 import { Input } from '@shared/ui/input'
@@ -45,29 +45,19 @@ const SurveyHeaderEdit = ({ title, description, isActive, onChange }) => (
   </Card>
 )
 
+const getInitialSurvey = (initialData) => ({
+  title: initialData?.title || '',
+  description: initialData?.description || '',
+  isActive: initialData?.is_active ?? false,
+  questions: initialData?.questions || [],
+  groups: initialData?.groups || ['3341']
+})
+
 export const SurveyBuilder = ({
   initialData
 }) => {
   const navigate = useNavigate()
-  const [survey, setSurvey] = useState({
-    title: '',
-    description: '',
-    isActive: false,
-    questions: [],
-    groups: ['3341']
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      setSurvey({
-        title: initialData.title || '',
-        description: initialData.description || '',
-        isActive: initialData.is_active ?? false,
-        questions: initialData.questions || [],
-        groups: initialData.groups || ['3341']
-      });
-    }
-  }, [initialData]);
+  const [survey, setSurvey] = useState(() => getInitialSurvey(initialData))
 
   const isEditMode = Boolean(initialData?.id)
 

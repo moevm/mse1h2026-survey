@@ -1,5 +1,30 @@
 import pytest
+import json
 from models import UserRole, User
+
+
+def create_survey(client, **overrides):
+    payload = {
+        "title": "Test Survey",
+        "description": "Description",
+        "questions": [{"id": 1, "text": "Do you like tests?"}],
+        "groups": ["3341"],
+        "lifetime_seconds": None,
+        "is_active": True,
+    }
+    payload.update(overrides)
+
+    data = {
+        "title": payload["title"],
+        "description": payload["description"],
+        "questions": json.dumps(payload["questions"]),
+        "groups": json.dumps(payload["groups"]),
+        "is_active": str(payload["is_active"]).lower(),
+    }
+    if payload["lifetime_seconds"] is not None:
+        data["lifetime_seconds"] = str(payload["lifetime_seconds"])
+
+    return client.post("/survey", data=data)
 
 def test_register_user(client):
     user_data = {
@@ -49,25 +74,23 @@ def admin_token(client, db_session):
     return client.cookies.get("access_token")
 
 def test_create_survey(client, admin_token):
-    survey_data = {
-        "title": "Main Survey",
-        "description": "Description",
-        "questions": [{"id": 1, "text": "Do you like tests?"}],
-        "lifetime_seconds": 3600
-    }
-    response = client.post("/survey", json=survey_data)
+    response = create_survey(
+        client,
+        title="Main Survey",
+        lifetime_seconds=3600,
+    )
     assert response.status_code == 200
     assert response.json()["title"] == "Main Survey"
 
 def test_get_all_surveys(client, admin_token):
-    client.post("/survey", json={"title": "S1", "description": "D", "questions": []})
+    create_survey(client, title="S1", description="D", questions=[])
     
     response = client.get("/survey")
     assert response.status_code == 200
     assert response.json()["count"] >= 1
 
 def test_update_survey(client, admin_token):
-    res = client.post("/survey", json={"title": "Old", "description": "D", "questions": []})
+    res = create_survey(client, title="Old", description="D", questions=[])
     s_id = res.json()["id"]
     
     response = client.put(f"/survey/{s_id}", json={"title": "New Title"})
@@ -75,7 +98,7 @@ def test_update_survey(client, admin_token):
     assert response.json()["title"] == "New Title"
 
 def test_delete_survey(client, admin_token):
-    res = client.post("/survey", json={"title": "Delete Me", "description": "D", "questions": []})
+    res = create_survey(client, title="Delete Me", description="D", questions=[])
     s_id = res.json()["id"]
     
     response = client.delete(f"/survey/{s_id}")
@@ -86,35 +109,35 @@ def test_delete_survey(client, admin_token):
 
 
 def test_post_answer(client, admin_token):
-    res = client.post("/survey", json={"title": "Answer Test", "description": "D", "questions": []})
+    res = create_survey(client, title="Answer Test", description="D", questions=[])
     s_id = res.json()["id"]
 
     answer_data = {
         "survey_id": s_id,
-        "group": 3112, 
+        "group": "3112",
         "answers": [{"q_id": 1, "val": "Excellent"}]
     }
     response = client.post("/answers", json=answer_data)
     assert response.status_code == 200
-    assert response.json()["group"] == 3112
+    assert response.json()["group"] == "3112"
 
 def test_get_answers_for_survey(client, admin_token):
-    res = client.post("/survey", json={"title": "Survey 42", "description": "D", "questions": []})
+    res = create_survey(client, title="Survey 42", description="D", questions=[])
     s_id = res.json()["id"]
     
     client.post("/answers", json={
-        "survey_id": s_id, "group": 99, "answers": [{"test": "ok"}]
+        "survey_id": s_id, "group": "99", "answers": [{"test": "ok"}]
     })
 
     response = client.get(f"/survey/answers/{s_id}")
     assert response.status_code == 200
     assert response.json()["count"] == 1
-    assert response.json()["answers_list"][0]["group"] == 99
+    assert response.json()["answers_list"][0]["group"] == "99"
 
 def test_delete_answer(client, admin_token):
-    res_s = client.post("/survey", json={"title": "Del Ans", "description": "D", "questions": []})
+    res_s = create_survey(client, title="Del Ans", description="D", questions=[])
     s_id = res_s.json()["id"]
-    res_a = client.post("/answers", json={"survey_id": s_id, "group": 1, "answers": []})
+    res_a = client.post("/answers", json={"survey_id": s_id, "group": "1", "answers": []})
     a_id = res_a.json()["id"]
 
     response = client.delete(f"/answers/{a_id}")

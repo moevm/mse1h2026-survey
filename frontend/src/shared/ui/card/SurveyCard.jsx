@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/button';
 
 import { FiEdit2 } from "react-icons/fi";
 import { FiPower } from "react-icons/fi";
+import { FiCopy } from "react-icons/fi";
 import { FiTrash2 } from "react-icons/fi";
 
 import clsx from "clsx";
@@ -31,6 +32,21 @@ export const SurveyCard = ({
   const currentStatus = is_active 
     ? statusConfig['active'] 
     : statusConfig['closed']
+
+  const surveyLink = `${window.location.origin}/survey/${id}`
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(surveyLink)
+    } catch {
+      const input = document.createElement('input')
+      input.value = surveyLink
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+  }
   
   return (
     <Card className={styles.surveyCard}>
@@ -46,6 +62,9 @@ export const SurveyCard = ({
 
       <div className={styles.footer}>
         <div className={styles.stats}>
+          <span className={styles.countLabel}>ID:</span>
+          <span className={styles.countValue}>{id}</span>
+          <span className={styles.countDivider}>/</span>
           <span className={styles.countLabel}>Вопросов:</span>
           <span className={styles.countValue}>{questions?.length || 0}</span>
         </div>
@@ -57,6 +76,14 @@ export const SurveyCard = ({
             title="Редактировать"
           >
             <FiEdit2 className={styles.icon} />
+          </Button>
+
+          <Button
+            className={clsx(styles.iconBtn, styles.copyBtn)}
+            onClick={handleCopyLink}
+            title="Скопировать ссылку на опрос"
+          >
+            <FiCopy className={styles.icon} />
           </Button>
 
           <Button 

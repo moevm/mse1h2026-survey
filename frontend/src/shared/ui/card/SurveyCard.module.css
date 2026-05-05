@@ -61,6 +61,10 @@
   color: #000;
 }
 
+.countDivider {
+  color: #d0d0d0;
+}
+
 .actions {
   display: flex;
   width: 100%;
@@ -91,11 +95,13 @@
   filter: none;
 }
 
+.copyBtn,
 .turnBtn, .deleteBtn {
   width: 40px;
   flex-shrink: 0;
 }
 
+.copyBtn:hover,
 .turnBtn:hover {
   background-color: #f7f7f7;
   border-color: #e5e5e5;

@@ -17,14 +17,14 @@ export const SurveySquareSidebar = ({
 
   return (
     <nav className={clsx(styles.navigation, className)}>
-      {questions.map((question) => {
+      {questions.map((question, index) => {
         return (
           <a 
             key={question.id}
             href={`#question-${question.id}`}
             className={clsx(styles.navItem, styles[getQuestionStatus(question)])}
           >
-            {question.id}
+            {index + 1}
           </a>
         )
       })}

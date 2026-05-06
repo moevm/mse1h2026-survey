@@ -135,62 +135,71 @@ https://survey.moevm.info/
 
 ---
 
-### Инструкция по запуску
+#### Запуск
 
-#### 1. Клонировать репозиторий
+1. Склонировать репозиторий:
 
 ```bash
 git clone https://github.com/moevm/mse1h2026-survey.git
 ```
 
-#### 2. Перейти в каталог проекта
+2. Перейти в каталог проекта:
 
 ```bash
 cd mse1h2026-survey
 ```
 
-#### 3. Запустить контейнеры
-
-##### Linux
-
-```bash
-sudo docker compose up --build
-```
-
-##### Windows
+3. Запустить контейнеры:
 
 ```bash
 docker compose up --build
 ```
 
-#### 4. Применить миграции базы данных
-
-После запуска контейнеров открой новый терминал и выполни:
-
-##### Linux
-
-```bash
-sudo docker compose exec backend alembic upgrade head
-```
-
-##### Windows
+Backend автоматически применяет миграции Alembic при старте приложения. Если нужно применить миграции вручную:
 
 ```bash
 docker compose exec backend alembic upgrade head
 ```
 
-Команду необходимо выполнять после полного запуска контейнеров.
-
-#### 5. Открыть приложение
+## Основные URL
 
 Frontend:
+
+```text
 http://localhost:8080
+```
 
 Backend API:
+
+```text
 http://localhost:8080/api
+```
 
 Swagger:
+
+```text
 http://localhost:8080/api/docs
+```
+
+Health check:
+
+```text
+http://localhost:8080/api/health
+```
+
+Админка:
+
+```text
+http://localhost:8080/login
+http://localhost:8080/dashboard
+```
+
+Данные администратора по умолчанию:
+
+```text
+login: admin
+password: admin
+```
 
 #### Остановка контейнеров
 

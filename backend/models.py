@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Mapped, mapped_column, validates, relationship
 from sqlalchemy import JSON, Integer, String, DateTime, Boolean, ForeignKey, Enum as SQLAlchemyEnum, UniqueConstraint, ARRAY
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from typing import List, Optional, Dict, Any
 from database import Base
 import enum
@@ -13,7 +15,7 @@ class UserRole(str, enum.Enum):
 class Survey(Base):
     __tablename__ = "surveys"
  
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     title: Mapped[str] = mapped_column(String(100), unique=True)
     description: Mapped[str] = mapped_column(String(255))
@@ -41,9 +43,9 @@ class Survey(Base):
 class Answer(Base):
     __tablename__ = "answers"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    survey_id: Mapped[int] = mapped_column(ForeignKey("surveys.id", ondelete="CASCADE"))
+    survey_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("surveys.id", ondelete="CASCADE"))
     survey: Mapped["Survey"] = relationship(back_populates="answers")
 
     group: Mapped[str] = mapped_column(String(6))
@@ -59,7 +61,7 @@ class Answer(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     username: Mapped[str] = mapped_column(
         String(255), 
@@ -75,7 +77,7 @@ class User(Base):
 class Group(Base):
     __tablename__ = "groups"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
 
     assignments: Mapped[List["GroupTeacherDiscipline"]] = relationship(
@@ -87,7 +89,7 @@ class Group(Base):
 class Teacher(Base):
     __tablename__ = "teachers"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
 
     assignments: Mapped[List["GroupTeacherDiscipline"]] = relationship(
@@ -99,7 +101,7 @@ class Teacher(Base):
 class Discipline(Base):
     __tablename__ = "disciplines"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(500), unique=True, nullable=False, index=True)
 
     assignments: Mapped[List["GroupTeacherDiscipline"]] = relationship(
@@ -116,15 +118,15 @@ class GroupTeacherDiscipline(Base):
         ),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
     )
-    teacher_id: Mapped[int] = mapped_column(
-        ForeignKey("teachers.id", ondelete="CASCADE"), nullable=False
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("teachers.id", ondelete="CASCADE"), nullable=False
     )
-    discipline_id: Mapped[int] = mapped_column(
-        ForeignKey("disciplines.id", ondelete="CASCADE"), nullable=False
+    discipline_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("disciplines.id", ondelete="CASCADE"), nullable=False
     )
 
     group: Mapped["Group"] = relationship(back_populates="assignments")

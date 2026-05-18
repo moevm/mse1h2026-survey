@@ -29,7 +29,7 @@ export const SurveyForm = ({
     const group = searchParams.get("group") || "";
 
     const payload = {
-      survey_id: Number(id),
+      survey_id: id,
       group,
       answers: questions.map((question) => {
         const value = answers[question.id];

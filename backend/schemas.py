@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import *
 from typing import Optional, Literal
 
@@ -26,7 +27,7 @@ class ScaleQuestion(Question):
     step: Optional[int] = 1
 
 class BluePrintQuestion(BaseModel):
-    id: int
+    id: UUID
     type: Literal["BluePrintQuestion"] = "BluePrintQuestion"
     questions: list[dict] # здесь будут храниться заготовки вопросов. Форматы соответствуют RadioButton, Checkbox и тд
 
@@ -43,7 +44,7 @@ class SurveyCreate(BaseModel):
 
 """Схемма данных об опросе от сервера"""
 class SurveyResponse(BaseModel):
-    id: int
+    id: UUID
     title: str
     description: str
     groups:list[str]
@@ -68,14 +69,14 @@ class SurveyUpdate(BaseModel):
 
 """Данные для создание отввета на опрос"""
 class AnswerCreate(BaseModel):
-    survey_id: int
+    survey_id: UUID
     group: str
     answers: list[dict]
 
 """Данные об ответе от сервера"""
 class AnswerResponse(BaseModel):
-    id: int
-    survey_id: int
+    id: UUID
+    survey_id: UUID
     group: str
     answers: list[dict]
 
@@ -85,7 +86,7 @@ class AnswerList(BaseModel):
 
 """Данные для обновления ответа на опрос"""
 class AnswerUpdate(BaseModel):
-    survey_id: Optional[int] = None
+    survey_id: Optional[UUID] = None
     group: Optional[str] = None
     answers: Optional[list[dict]] = None
 
@@ -114,7 +115,7 @@ class GroupCreate(GroupBase):
     pass
 
 class GroupResponse(GroupBase):
-    id: int
+    id: UUID
     model_config = ConfigDict(from_attributes=True)
 
 class TeacherBase(BaseModel):
@@ -124,7 +125,7 @@ class TeacherCreate(TeacherBase):
     pass
 
 class TeacherResponse(TeacherBase):
-    id: int
+    id: UUID
     model_config = ConfigDict(from_attributes=True)
 
 class DisciplineBase(BaseModel):
@@ -134,23 +135,23 @@ class DisciplineCreate(DisciplineBase):
     pass
 
 class DisciplineResponse(DisciplineBase):
-    id: int
+    id: UUID
     model_config = ConfigDict(from_attributes=True)
 
 class GroupTeacherDisciplineBase(BaseModel):
-    group_id: int
-    teacher_id: int
-    discipline_id: int
+    group_id: UUID
+    teacher_id: UUID
+    discipline_id: UUID
 
 class GroupTeacherDisciplineCreate(GroupTeacherDisciplineBase):
     pass
 
 class GroupTeacherDisciplineResponse(GroupTeacherDisciplineBase):
-    id: int
+    id: UUID
     model_config = ConfigDict(from_attributes=True)
 
 class AssignmentWithDetails(BaseModel):
-    id: int
+    id: UUID
     group: GroupResponse
     teacher: TeacherResponse
     discipline: DisciplineResponse

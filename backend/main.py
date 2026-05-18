@@ -162,12 +162,11 @@ async def lifespan(app: FastAPI):
         else:
             print("Администратор уже существует")
 
-        default_survey = db.query(Survey).filter(Survey.id == 1).first()
+        default_survey = db.query(Survey).filter(Survey.title == "Опрос по качеству обучения").first()
 
         if not default_survey:
             survey = Survey(
-                id=1,
-                title="Опрос по качеству обучения",
+                                title="Опрос по качеству обучения",
                 description="Пожалуйста, ответьте на все 6 вопросов",
                 groups=["3341","3342","3343"],
                 lifetime_seconds=None,
@@ -216,9 +215,9 @@ async def lifespan(app: FastAPI):
             db.add(survey)
             db.commit()
             db.refresh(survey)
-            print("Опрос с id=1 успешно создан")
+            print("Опрос успешно создан")
         else:
-            print("Опрос с id=1 уже существует")
+            print("Опрос уже существует")
 
         seed_default_schedule(db)
 
@@ -401,7 +400,7 @@ def get_survey_by_group(group:str, db:Session= Depends(get_db)):
     }
 
 @app.get("/survey/{id}", response_model=SurveyResponse)
-def get_survey(id:int, db:Session = Depends(get_db)):
+def get_survey(id:str, db:Session = Depends(get_db)):
     """Находит опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
@@ -475,7 +474,7 @@ def post_survey(
 
 
 @app.put("/survey/{id}", response_model=SurveyResponse)
-def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def put_survey(id:str, data:SurveyUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     """Обновляет данные опроса"""
     
     exist_survey = db.query(Survey).filter(Survey.id == id).first()
@@ -506,7 +505,7 @@ def put_survey(id:int, data:SurveyUpdate, db:Session = Depends(get_db), current_
     return exist_survey
 
 @app.delete("/survey/{id}")
-def delete_survey(id:int, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_survey(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     """Удаляет опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
@@ -530,7 +529,7 @@ def delete_survey(id:int, db:Session = Depends(get_db), current_admin: User = De
 
 
 @app.get("/survey/answers/{id}", response_model=AnswerList)
-def get_all_answers(id:int, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_all_answers(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     answers_list = db.query(Answer).filter(Answer.survey_id == id).all()
     answers_count = db.query(Answer).filter(Answer.survey_id == id).count()
 
@@ -546,7 +545,7 @@ def get_all_answers(id:int, db:Session = Depends(get_db), current_admin: User = 
     }
 
 @app.get("/answers/{id}", response_model=AnswerResponse)
-def get_answer(id:int, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     answer = db.query(Answer).filter(Answer.id == id).first()
 
     if not answer:
@@ -575,7 +574,7 @@ def post_answer(data:AnswerCreate, db:Session = Depends(get_db)):
     return new_answer
 
 @app.put("/answers/{id}", response_model=AnswerResponse)
-def put_answer(id:int, data:AnswerUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def put_answer(id:str, data:AnswerUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     exist_answer = db.query(Answer).filter(Answer.id == id).first()
     if not exist_answer:
         raise HTTPException(
@@ -600,7 +599,7 @@ def put_answer(id:int, data:AnswerUpdate, db:Session = Depends(get_db), current_
     return exist_answer
 
 @app.delete("/answers/{id}")
-def delete_answer(id:int, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     exist_answer = db.query(Answer).filter(Answer.id == id).first()
 
     if not exist_answer:
@@ -731,7 +730,7 @@ def get_groups(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), c
 
 
 @app.get("/get_group/{group_id}", response_model=GroupResponse)
-def get_group(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_group(group_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     group = db.query(Group).filter(Group.id == group_id).first()
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -739,7 +738,7 @@ def get_group(group_id: int, db: Session = Depends(get_db), current_admin: User 
 
 
 @app.put("/update_group/{group_id}", response_model=GroupResponse)
-def update_group(group_id: int, group: GroupCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def update_group(group_id: str, group: GroupCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     db_group = db.query(Group).filter(Group.id == group_id).first()
     if db_group is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -755,7 +754,7 @@ def update_group(group_id: int, group: GroupCreate, db: Session = Depends(get_db
 
 
 @app.delete("/delete_group/{group_id}")
-def delete_group(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_group(group_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     group = db.query(Group).filter(Group.id == group_id).first()
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -786,7 +785,7 @@ def get_teachers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
 
 
 @app.get("/get_teacher/{teacher_id}", response_model=TeacherResponse)
-def get_teacher(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_teacher(teacher_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if teacher is None:
         raise HTTPException(status_code=404, detail="Teacher not found")
@@ -794,7 +793,7 @@ def get_teacher(teacher_id: int, db: Session = Depends(get_db), current_admin: U
 
 
 @app.put("/update_teacher/{teacher_id}", response_model=TeacherResponse)
-def update_teacher(teacher_id: int, teacher: TeacherCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def update_teacher(teacher_id: str, teacher: TeacherCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     db_teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if db_teacher is None:
         raise HTTPException(status_code=404, detail="Teacher not found")
@@ -810,7 +809,7 @@ def update_teacher(teacher_id: int, teacher: TeacherCreate, db: Session = Depend
 
 
 @app.delete("/delete_teacher/{teacher_id}")
-def delete_teacher(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_teacher(teacher_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if teacher is None:
         raise HTTPException(status_code=404, detail="Teacher not found")
@@ -840,7 +839,7 @@ def get_disciplines(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 
 @app.get("/get_discipline/{discipline_id}", response_model=DisciplineResponse)
-def get_discipline(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_discipline(discipline_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
     if discipline is None:
         raise HTTPException(status_code=404, detail="Discipline not found")
@@ -848,7 +847,7 @@ def get_discipline(discipline_id: int, db: Session = Depends(get_db), current_ad
 
 
 @app.put("/update_discipline/{discipline_id}", response_model=DisciplineResponse)
-def update_discipline(discipline_id: int, discipline: DisciplineCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def update_discipline(discipline_id: str, discipline: DisciplineCreate, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     db_discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
     if db_discipline is None:
         raise HTTPException(status_code=404, detail="Discipline not found")
@@ -864,7 +863,7 @@ def update_discipline(discipline_id: int, discipline: DisciplineCreate, db: Sess
 
 
 @app.delete("/delete_discipline/{discipline_id}")
-def delete_discipline(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_discipline(discipline_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     discipline = db.query(Discipline).filter(Discipline.id == discipline_id).first()
     if discipline is None:
         raise HTTPException(status_code=404, detail="Discipline not found")
@@ -905,7 +904,7 @@ def get_assignments(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 
 
 @app.get("/get_assignment/{assignment_id}", response_model=AssignmentWithDetails)
-def get_assignment(assignment_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_assignment(assignment_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignment = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.id == assignment_id).first()
     if assignment is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
@@ -913,7 +912,7 @@ def get_assignment(assignment_id: int, db: Session = Depends(get_db), current_ad
 
 
 @app.delete("/delete_assignment/{assignment_id}")
-def delete_assignment(assignment_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def delete_assignment(assignment_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignment = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.id == assignment_id).first()
     if assignment is None:
         raise HTTPException(status_code=404, detail="Assignment not found")
@@ -924,18 +923,18 @@ def delete_assignment(assignment_id: int, db: Session = Depends(get_db), current
 
 
 @app.get("/groups/{group_id}/assignments", response_model=List[AssignmentWithDetails])
-def get_group_assignments(group_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_group_assignments(group_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.group_id == group_id).all()
     return assignments
 
 
 @app.get("/teachers/{teacher_id}/assignments", response_model=List[AssignmentWithDetails])
-def get_teacher_assignments(teacher_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_teacher_assignments(teacher_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.teacher_id == teacher_id).all()
     return assignments
 
 
 @app.get("/disciplines/{discipline_id}/assignments", response_model=List[AssignmentWithDetails])
-def get_discipline_assignments(discipline_id: int, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_discipline_assignments(discipline_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.discipline_id == discipline_id).all()
     return assignments

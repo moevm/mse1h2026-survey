@@ -22,6 +22,7 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/dashboard" element={<DashBoardPage />} />
         <Route path="/builder" element={<SurveyBuilderPage />} />
         <Route path="/builder/:id" element={<SurveyBuilderPage />} />

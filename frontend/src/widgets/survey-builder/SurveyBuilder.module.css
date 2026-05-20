@@ -62,7 +62,44 @@
 }
 
 .field:focus-visible {
-  border: 1px solid  #0055ff;
+  border: 1px solid #0055ff;
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  color: #797979;
+}
+
+.blueprintRows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.blueprintRowOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background-color: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000;
+  cursor: pointer;
+}
+
+.blueprintRowOption input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.blueprintRowValue {
+  color: #797979;
+  font-size: 12px;
 }
 
 .textarea {
@@ -74,7 +111,7 @@
 }
 
 .textarea:focus-visible {
-  border: 1px solid  #0055ff;
+  border: 1px solid #0055ff;
 }
 
 .statusBlock {
@@ -108,6 +145,41 @@
   padding: 40px 0;
 }
 
+.questionHeader {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.questionNumber {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  color: #9ca3af;
+  cursor: grab;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.dragHandle:hover {
+  color: #6b7280;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
 .row {
   display: flex;
   align-items: flex-end;
@@ -124,10 +196,25 @@
   width: 100%;
 }
 
+.typeBlock {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-width: 140px;
+}
+
 .optionList {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+}
+
+.optionItemContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
 }
 
@@ -137,14 +224,6 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-}
-
-.typeBlock {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  gap: 6px;
-  min-width: 140px;
 }
 
 .answerIndex {
@@ -186,6 +265,8 @@
   background-color: transparent;
   box-shadow: none;
   max-width: fit-content;
+  border: none;
+  cursor: pointer;
 }
 
 .removeIconBtn:hover {
@@ -197,7 +278,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-left: 32px;
+}
+
+.tagsContainer {
+  margin-top: 4px;
 }
 
 .tagBtn {
@@ -208,6 +292,7 @@
   background-color: #eff6ff;
   border: 1px solid #dbeafe;
   border-radius: 20px;
+  cursor: pointer;
   transition: background-color 0.15s;
 }
 
@@ -236,7 +321,7 @@
 .blueprintCardHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
 }
 
 .blueprintCardNumber {
@@ -245,14 +330,14 @@
   color: #000;
 }
 
+.blueprintHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .scaleRow {
   display: flex;
   gap: 12px;
   width: 100%;
-}
-
-.tagBar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }

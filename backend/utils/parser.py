@@ -178,3 +178,36 @@ def parse_and_populate(url: str, session: Session) -> dict:
     records = _fetch_records(url)
     stats = _populate(records, session)
     return stats
+
+
+def detect_columns_from_url(url: str) -> dict[str, str]:
+    KEYWORDS = {
+        "teacher":     "преподаватель",
+        "discipline":  "дисциплина",
+        "group":       "группа",
+    }
+
+    sheet_id = extract_sheet_id(url)
+    workbook = download_workbook(sheet_id)
+
+    df = workbook.parse(workbook.sheet_names[0], header=None)
+
+    temp = {}
+    for key, keyword in KEYWORDS.items():
+        matches = [val for val in df.iloc[0].fillna("").astype(str) if keyword in val.lower()]
+        if not matches:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Не найдена колонка '{keyword}' в заголовках листа.",
+            )
+        temp[key] = matches[0].strip()
+
+    
+    result = {}
+
+    counter = 1
+    for item in temp.values():
+        result[f"option{counter}"] = item.split()[0]
+        counter += 1
+
+    return result

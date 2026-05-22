@@ -473,6 +473,47 @@ def post_survey(
     return new_survey
 
 
+@app.post("/survey/{id}/copy", response_model=SurveyResponse)
+def copy_survey(id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    """Создает копию опроса по ID"""
+    survey = db.query(Survey).filter(Survey.id == id).first()
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    new_title = f"{survey.title} (копия)"
+    counter = 1
+    while db.query(Survey).filter(Survey.title == new_title).first():
+        new_title = f"{survey.title} (копия {counter})"
+        counter += 1
+
+    new_survey = Survey(
+        title=new_title,
+        description=survey.description,
+        lifetime_seconds=survey.lifetime_seconds,
+        questions=survey.questions,
+        groups=survey.groups,
+        is_active=survey.is_active,
+        photo_path=survey.photo_path
+    )
+    
+    db.add(new_survey)
+
+    try:
+        db.commit()
+        db.refresh(new_survey)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            detail=f"Something goes wrong: {e}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    return new_survey
+
+
 @app.put("/survey/{id}", response_model=SurveyResponse)
 def put_survey(id:str, data:SurveyUpdate, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     """Обновляет данные опроса"""

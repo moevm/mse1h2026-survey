@@ -1,0 +1,162 @@
+from uuid import UUID
+from pydantic import *
+from typing import Optional, Literal
+
+"""Здесь описанна структура входяших и исходящих данных"""
+
+class Question(BaseModel):
+    id_question: int
+    title: str
+    type: str
+
+class RadioButton(Question):
+    type: Literal["RadioButton"] = "RadioButton"
+    answers: list[str]
+
+class Checkbox(Question):
+    type: Literal["Checkbox"] = "Checkbox"  
+    answers: list[str]
+
+class FreeQuestion(Question):
+    type: Literal["FreeQuestion"] = "FreeQuestion"
+
+class ScaleQuestion(Question):
+    type: Literal["ScaleQuestion"] = "ScaleQuestion"
+    min_range: int
+    max_range: int
+    step: Optional[int] = 1
+
+class BluePrintQuestion(BaseModel):
+    id: UUID
+    type: Literal["BluePrintQuestion"] = "BluePrintQuestion"
+    questions: list[dict] # здесь будут храниться заготовки вопросов. Форматы соответствуют RadioButton, Checkbox и тд
+
+class QuestionAnswer(BaseModel):
+    id_question: int
+    answer: list[str]
+
+"""схемма данных для создания опроса"""
+class SurveyCreate(BaseModel):
+    title: str
+    description: str
+    lifetime_seconds: Optional[int] = None
+    questions: list[dict]
+
+"""Схемма данных об опросе от сервера"""
+class SurveyResponse(BaseModel):
+    id: UUID
+    title: str
+    description: str
+    groups:list[str]
+    lifetime_seconds: Optional[int] = None
+    questions: list[dict]
+    photo_path: Optional[str] = None
+    google_sheets_link: Optional[str] = None
+    is_active: bool = True
+
+"""Лист со всеми опросами"""
+class SurveyList(BaseModel):
+    count: int
+    survey_list: list[SurveyResponse]
+
+"""Схемма данных для обновления опроса"""
+class SurveyUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    groups: Optional[list[str]] = None
+    lifetime_seconds: Optional[int] = None
+    questions: Optional[list[dict]] = None
+    google_sheets_link: Optional[str] = None
+    is_active: Optional[bool] = None
+
+"""Данные для создание отввета на опрос"""
+class AnswerCreate(BaseModel):
+    survey_id: UUID
+    group: str
+    answers: list[dict]
+
+"""Данные об ответе от сервера"""
+class AnswerResponse(BaseModel):
+    id: UUID
+    survey_id: UUID
+    group: str
+    answers: list[dict]
+
+class AnswerList(BaseModel):
+    count: int
+    answers_list: list[AnswerResponse]
+
+"""Данные для обновления ответа на опрос"""
+class AnswerUpdate(BaseModel):
+    survey_id: Optional[UUID] = None
+    group: Optional[str] = None
+    answers: Optional[list[dict]] = None
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserRegister(BaseModel):
+    username: str
+    password: str = Field(..., min_length=8)
+    confirm_password: str = Field(..., min_length=8)
+
+class SetGoogleSheetsLink(BaseModel):
+    survey_id: Optional[UUID] = None
+    url: str
+    delete_old_data: bool
+
+class ParsedDataRecord(BaseModel):
+    group: str
+    teacher: str
+    discipline: str
+
+class GroupBase(BaseModel):
+    name: str
+
+class GroupCreate(GroupBase):
+    pass
+
+class GroupResponse(GroupBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class TeacherBase(BaseModel):
+    name: str
+
+class TeacherCreate(TeacherBase):
+    pass
+
+class TeacherResponse(TeacherBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class DisciplineBase(BaseModel):
+    name: str
+
+class DisciplineCreate(DisciplineBase):
+    pass
+
+class DisciplineResponse(DisciplineBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupTeacherDisciplineBase(BaseModel):
+    group_id: UUID
+    teacher_id: UUID
+    discipline_id: UUID
+
+class GroupTeacherDisciplineCreate(GroupTeacherDisciplineBase):
+    pass
+
+class GroupTeacherDisciplineResponse(GroupTeacherDisciplineBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class AssignmentWithDetails(BaseModel):
+    id: UUID
+    group: GroupResponse
+    teacher: TeacherResponse
+    discipline: DisciplineResponse
+    model_config = ConfigDict(from_attributes=True)
+

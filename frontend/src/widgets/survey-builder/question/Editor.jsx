@@ -1,42 +1,61 @@
+import { Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from '@shared/ui/input'
 import { Button } from '@shared/ui/button'
 import { BlueprintEditor } from '../blueprint/BlueprintEditor'
 import { OptionItem } from './OptionItem'
 import styles from '../SurveyBuilder.module.css'
 
-const OptionsEditor = ({ options, onUpdate }) => {
-  const lastIsEmpty = options.length > 0 && options[options.length - 1].trim() === ''
-  const handleAdd = () => onUpdate([...options, ''])
-  const handleRemove = (idx) => onUpdate(options.filter((_, i) => i !== idx))
-  const handleChange = (idx, value) => {
-    const next = [...options]
-    next[idx] = value
+export const OptionsEditor = ({ questionId, options = [], onUpdate }) => {
+  const handleAdd = () => {
+    const newOption = { id: crypto.randomUUID(), value: '' }
+    onUpdate([...options, newOption])
+  }
+
+  const handleRemove = (id) => onUpdate(options.filter((opt) => String(opt.id) !== String(id)))
+
+  const handleChange = (id, value) => {
+    const next = options.map((opt) => (String(opt.id) === String(id) ? { ...opt, value } : opt))
     onUpdate(next)
   }
 
   return (
     <>
-      <div className={styles.optionList}>
-        {options.map((option, idx) => (
-          <OptionItem
-            key={idx}
-            number={idx + 1}
-            value={option}
-            onChange={(val) => handleChange(idx, val)}
-            onRemove={() => handleRemove(idx)}
-          />
-        ))}
-      </div>
-      <Button onClick={handleAdd} className={styles.addBtn} disabled={lastIsEmpty}>
-        + Добавить вариант
-      </Button>
+      <Droppable droppableId={`opt-${questionId}`} type={`OPTION_${questionId}`}>
+        {(provided) => (
+          <div className={styles.optionList} ref={provided.innerRef} {...provided.droppableProps}>
+            {options.map((opt, idx) => (
+              <Draggable key={String(opt.id)} draggableId={`opt-item-${String(opt.id)}`} index={idx}>
+                {(dragProvided, dragSnapshot) => (
+                  <div
+                    ref={dragProvided.innerRef}
+                    {...dragProvided.draggableProps}
+                    style={{
+                      ...dragProvided.draggableProps.style,
+                      opacity: dragSnapshot.isDragging ? 0.85 : 1,
+                    }}
+                  >
+                    <OptionItem
+                      number={idx + 1}
+                      value={opt.value}
+                      onChange={(val) => handleChange(opt.id, val)}
+                      onRemove={() => handleRemove(opt.id)}
+                      dragHandleProps={dragProvided.dragHandleProps}
+                    />
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+      <Button onClick={handleAdd} className={styles.addBtn}>+ Добавить вариант</Button>
     </>
   )
 }
 
 const ScaleEditor = ({ options, onUpdate }) => {
   const labels = { min: 'Минимум', max: 'Максимум', step: 'Шаг' }
-
 
   const handleChange = (field, value) => {
     onUpdate({ ...options, [field]: value === '' ? 0 : parseInt(value, 10) })
@@ -49,7 +68,7 @@ const ScaleEditor = ({ options, onUpdate }) => {
           <span className={styles.label}>{labels[field]}</span>
           <Input
             type="number"
-            value={options[field]}
+            value={options[field] ?? 0}
             onChange={(e) => handleChange(field, e.target.value)}
             className={styles.field}
           />
@@ -61,34 +80,61 @@ const ScaleEditor = ({ options, onUpdate }) => {
 
 const defaultOptions = {
   text: [],
-  radio: ['Вариант 1'],
-  checkbox: ['Вариант 1'],
+  radio: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
+  checkbox: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
   scale: { min: 0, max: 10, step: 1 },
   blueprint: [],
-};
-
-const editorMap = {
-  text: () => null,
-  radio: OptionsEditor,
-  checkbox: OptionsEditor,
-  scale: ScaleEditor,
-  blueprint: BlueprintEditor,
 }
 
-const EmptyEditor = () => null
-
-export const Editor = ({ type, options, onUpdate }) => {
-  const Component = editorMap[type] ?? EmptyEditor
-  let safeOptions = options;
+export const Editor = ({
+  questionId,
+  type,
+  options,
+  startNumber = 1,
+  blueprintTags = [],
+  onUpdate,
+}) => {
+  let safeOptions = options
 
   if (type === 'scale') {
     if (!options || Array.isArray(options) || typeof options !== 'object') {
-      safeOptions = defaultOptions.scale;
+      safeOptions = defaultOptions.scale
     }
   } else {
     if (!Array.isArray(options)) {
-      safeOptions = defaultOptions[type] || [];
+      safeOptions = defaultOptions[type] || []
+    } else if (['radio', 'checkbox'].includes(type)) {
+      safeOptions = options.map((opt) =>
+        typeof opt === 'string'
+          ? { id: crypto.randomUUID(), value: opt }
+          : { ...opt, id: String(opt.id) }
+      )
     }
   }
-  return <Component options={safeOptions} onUpdate={onUpdate} />
+
+  if (type === 'text') return null
+
+  if (type === 'scale') {
+    return <ScaleEditor options={safeOptions} onUpdate={onUpdate} />
+  }
+
+  if (type === 'blueprint') {
+    return (
+      <BlueprintEditor
+        questionId={questionId}
+        options={safeOptions}
+        startNumber={startNumber}
+        blueprintTags={blueprintTags}
+        onUpdate={onUpdate}
+      />
+    )
+  }
+
+  return (
+    <OptionsEditor
+      questionId={questionId}
+      options={safeOptions}
+      onUpdate={onUpdate}
+    />
+  )
 }

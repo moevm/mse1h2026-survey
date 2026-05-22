@@ -11,6 +11,12 @@ import clsx from 'clsx'
 import styles from './SurveyBuilder.module.css'
 import { request } from '@shared/api/axios'
 
+const defaultBlueprintRows = [
+  { option: 'Преподаватель', value: '{{teacher}}' },
+  { option: 'Группа', value: '{{group}}' },
+  { option: 'Предмет', value: '{{subject}}' },
+]
+
 const SurveyStatus = ({ isActive }) => (
   <div className={styles.statusBlock}>
     <span className={styles.statusTitle}>Статус опроса</span>
@@ -40,49 +46,119 @@ const SurveyHeaderEdit = ({ title, description, isActive, onChange }) => (
     </div>
     <Toolbar
       left={<SurveyStatus isActive={isActive} />}
-      right={<Toggle isActive={isActive} onChange={(val) => onChange({ isActive: val })} />}
+      right={<Toggle checked={isActive} onChange={(val) => onChange({ isActive: val })} />}
     />
   </Card>
 )
 
+const BlueprintSettings = ({
+  blueprintLink,
+  blueprintRows,
+  selectedBlueprintRows,
+  onBlueprintLinkChange,
+  onToggleBlueprintRow,
+}) => (
+  <Card className={styles.card}>
+    <div className={styles.fieldGroup}>
+      <span className={styles.label}>Введите ссылку на таблицу</span>
+      <Input
+        type="url"
+        value={blueprintLink}
+        onChange={(e) => onBlueprintLinkChange(e.target.value)}
+        placeholder="https://example.com"
+        className={styles.field}
+      />
+    </div>
+    {blueprintLink.trim() && (
+      <div className={styles.fieldGroup}>
+        <span className={styles.label}>Шаблонные теги</span>
+        <div className={styles.blueprintRows}>
+          {blueprintRows.map((row) => (
+            <label key={row.value} className={styles.blueprintRowOption}>
+              <input
+                type="checkbox"
+                checked={selectedBlueprintRows.includes(row.value)}
+                onChange={(e) => onToggleBlueprintRow(row.value, e.target.checked)}
+              />
+              <span>{row.option}</span>
+              <span className={styles.blueprintRowValue}>{row.value}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    )}
+  </Card>
+)
+
+const normalizeOptions = (options, type) => {
+  if (!Array.isArray(options)) return options
+  if (!['radio', 'checkbox'].includes(type)) return options
+  return options.map((opt) =>
+    typeof opt === 'string' ? { id: crypto.randomUUID(), value: opt } : opt
+  )
+}
+
+const normalizeQuestionForBuilder = (question) => {
+  const raw = question.options ?? question.answers ?? []
+  const nextQuestion = {
+    ...question,
+    options: normalizeOptions(raw, question.type),
+  }
+
+  if (question.type === 'scale' && question.options && !Array.isArray(question.options)) {
+    nextQuestion.options = question.options
+  }
+
+  if (question.type === 'blueprint' && Array.isArray(nextQuestion.options)) {
+    nextQuestion.options = nextQuestion.options.map(normalizeQuestionForBuilder)
+  }
+
+  return nextQuestion
+}
+
 const getInitialSurvey = (initialData) => ({
   title: initialData?.title || '',
   description: initialData?.description || '',
+  blueprintLink: initialData?.blueprint_link || initialData?.blueprintLink || '',
+  blueprintRows: initialData?.blueprint_rows || initialData?.blueprintRows || defaultBlueprintRows,
+  selectedBlueprintRows: initialData?.selected_blueprint_rows || initialData?.selectedBlueprintRows || [],
   isActive: initialData?.is_active ?? false,
-  questions: initialData?.questions || [],
-  groups: initialData?.groups || ['3341']
+  questions: (initialData?.questions || []).map(normalizeQuestionForBuilder),
+  groups: initialData?.groups || ['3341'],
 })
 
-const hasInvalidListOptions = (question) => (
-  ['radio', 'checkbox'].includes(question.type) &&
-  (
-    !Array.isArray(question.options) ||
-    question.options.length === 0 ||
-    question.options.some(option => !String(option).trim())
+const getQuestionOptions = (question) => question.options ?? question.answers ?? []
+
+const hasInvalidListOptions = (question) => {
+  if (!['radio', 'checkbox'].includes(question.type)) return false
+  const options = getQuestionOptions(question)
+  return (
+    !Array.isArray(options) ||
+    options.length === 0 ||
+    options.some((option) => !String(option?.value ?? option).trim())
   )
-)
+}
 
 const isInvalidQuestion = (question) => {
   if (question.type === 'blueprint') {
-    const blueprintQuestions = Array.isArray(question.options) ? question.options : []
+    const blueprintQuestions = Array.isArray(getQuestionOptions(question)) ? getQuestionOptions(question) : []
     return (
       blueprintQuestions.length === 0 ||
-      blueprintQuestions.some(item => !String(item.title ?? '').trim() || hasInvalidListOptions(item))
+      blueprintQuestions.some((item) => !String(item.title ?? '').trim() || hasInvalidListOptions(item))
     )
   }
-
   return !String(question.title ?? '').trim() || hasInvalidListOptions(question)
 }
 
-export const SurveyBuilder = ({
-  initialData
-}) => {
+export const SurveyBuilder = ({ initialData }) => {
   const navigate = useNavigate()
   const [survey, setSurvey] = useState(() => getInitialSurvey(initialData))
 
   const isEditMode = Boolean(initialData?.id)
 
   const hasInvalidQuestions = survey.questions.some(isInvalidQuestion)
+  const hasBlueprintLink = Boolean(survey.blueprintLink.trim())
+  const blueprintTags = survey.blueprintRows.filter((row) => survey.selectedBlueprintRows.includes(row.value))
 
   const isSubmitDisabled =
     !survey.title.trim() ||
@@ -90,94 +166,117 @@ export const SurveyBuilder = ({
     survey.questions.length === 0 ||
     hasInvalidQuestions
 
-  const updateMeta = (data) => setSurvey(prev => ({ ...prev, ...data }))
+  const updateMeta = (data) => setSurvey((prev) => ({ ...prev, ...data }))
+
+  const handleBlueprintLinkChange = (blueprintLink) => {
+    setSurvey((prev) => ({
+      ...prev,
+      blueprintLink,
+      selectedBlueprintRows: [],
+      questions: prev.questions.filter((question) => question.type !== 'blueprint'),
+    }))
+  }
+
+  const toggleBlueprintRow = (value, checked) => {
+    setSurvey((prev) => ({
+      ...prev,
+      selectedBlueprintRows: checked
+        ? [...prev.selectedBlueprintRows, value]
+        : prev.selectedBlueprintRows.filter((item) => item !== value),
+    }))
+  }
 
   const addQuestion = () => {
-    setSurvey(prev => ({
+    setSurvey((prev) => ({
       ...prev,
-      questions: [...prev.questions, {
-        id: crypto.randomUUID(),
-        title: '',
-        type: 'text',
-        options: [],
-        isRequired: false
-      }]
+      questions: [
+        ...prev.questions,
+        {
+          id: crypto.randomUUID(),
+          title: '',
+          type: 'text',
+          options: [],
+          isRequired: false,
+        },
+      ],
     }))
   }
 
   const removeQuestion = (id) => {
-    setSurvey(prev => ({
+    setSurvey((prev) => ({
       ...prev,
-      questions: prev.questions.filter(q => q.id !== id)
+      questions: prev.questions.filter((q) => q.id !== id),
     }))
   }
 
   const updateQuestion = (id, fields) => {
-    setSurvey(prev => ({
+    setSurvey((prev) => ({
       ...prev,
-      questions: prev.questions.map(q => q.id === id ? { ...q, ...fields } : q)
+      questions: prev.questions.map((q) => (q.id === id ? { ...q, ...fields } : q)),
     }))
   }
 
-  const handleSave = async () => {
-  try {
-    if (isEditMode) {
-      const payload = {
-        title: survey.title.trim(),
-        description: survey.description.trim(),
-        is_active: survey.isActive,
-        questions: survey.questions,
-        groups: survey.groups,
-      };
+  const handleReorderQuestions = (nextQuestions) => {
+    setSurvey((prev) => ({ ...prev, questions: nextQuestions }))
+  }
 
-      await request('PUT', `/survey/${initialData.id}`, payload);
-    } else {
-      const formData = new FormData();
-      
-      formData.append('title', survey.title.trim());
-      formData.append('description', survey.description.trim());
-      formData.append('is_active', survey.isActive);
-      
-      formData.append('questions', JSON.stringify(survey.questions));
-      formData.append('groups', JSON.stringify(survey.groups));
-      if (survey.lifetime_seconds) {
-        formData.append('lifetime_seconds', survey.lifetime_seconds);
+  const handleSave = async () => {
+    try {
+      if (isEditMode) {
+        const payload = {
+          title: survey.title.trim(),
+          description: survey.description.trim(),
+          blueprint_link: survey.blueprintLink.trim(),
+          selected_blueprint_rows: survey.selectedBlueprintRows,
+          is_active: survey.isActive,
+          questions: survey.questions,
+          groups: survey.groups,
+        }
+        await request('PUT', `/survey/${initialData.id}`, payload)
+      } else {
+        const formData = new FormData()
+        formData.append('title', survey.title.trim())
+        formData.append('description', survey.description.trim())
+        formData.append('blueprint_link', survey.blueprintLink.trim())
+        formData.append('selected_blueprint_rows', JSON.stringify(survey.selectedBlueprintRows))
+        formData.append('is_active', survey.isActive ? 'true' : 'false')
+        formData.append('questions', JSON.stringify(survey.questions))
+        formData.append('groups', JSON.stringify(survey.groups))
+        if (survey.lifetime_seconds) {
+          formData.append('lifetime_seconds', survey.lifetime_seconds)
+        }
+        await request('POST', '/survey', formData)
       }
-      await request('POST', '/survey', formData);
-    }
-      navigate('/dashboard');
+      navigate('/dashboard')
     } catch (err) {
-      console.error("Save error:", err);
-      const errorMsg = typeof err === 'string'
-        ? err
-        : err?.response?.data?.detail;
+      console.error('Save error:', err)
+      const errorMsg = typeof err === 'string' ? err : err?.response?.data?.detail
       alert(
-        typeof errorMsg === 'string' 
-          ? errorMsg 
-          : "Не удалось сохранить опрос. Проверьте правильность заполнения."
-      );
+        typeof errorMsg === 'string'
+          ? errorMsg
+          : 'Не удалось сохранить опрос. Проверьте правильность заполнения.'
+      )
     }
-  };
+  }
 
   const handleDelete = async () => {
     if (isEditMode) {
-      const ok = window.confirm("Вы уверены, что хотите полностью удалить этот опрос?");
-      if (!ok) return;
-
+      const ok = window.confirm('Вы уверены, что хотите полностью удалить этот опрос?')
+      if (!ok) return
       try {
-        await request('DELETE', `/survey/${initialData.id}`);
-        navigate('/dashboard');
+        await request('DELETE', `/survey/${initialData.id}`)
+        navigate('/dashboard')
       } catch (err) {
-        console.error("Delete error:", err);
-        alert("Не удалось удалить опрос");
+        console.error('Delete error:', err)
+        alert('Не удалось удалить опрос')
       }
     } else {
-      const hasContent = survey.title || survey.questions.length > 0;
+      const hasContent = survey.title || survey.questions.length > 0
       if (hasContent) {
-        const ok = window.confirm("Отменить создание опроса? Введенные данные будут потеряны.");
-        if (!ok) return;
+        const ok = window.confirm('Отменить создание опроса? Введенные данные будут потеряны.')
+        if (!ok) return
       }
-      navigate('/dashboard');
+      navigate('/dashboard')
     }
   }
 
@@ -189,16 +288,12 @@ export const SurveyBuilder = ({
       </button>
       <div className={styles.headerBlock}>
         <h1 className={styles.pageTitle}>
-          {isEditMode
-            ? 'Редактирование опроса' 
-            : 'Создание нового опроса'
-          }
+          {isEditMode ? 'Редактирование опроса' : 'Создание нового опроса'}
         </h1>
         <span className={styles.pageSubtitle}>
           {isEditMode
             ? 'Внесите изменения в существующий опрос'
-            : 'Заполните информацию об опросе и добавьте вопросы'
-          }
+            : 'Заполните информацию об опросе и добавьте вопросы'}
         </span>
       </div>
       <SurveyHeaderEdit
@@ -206,6 +301,13 @@ export const SurveyBuilder = ({
         description={survey.description}
         isActive={survey.isActive}
         onChange={updateMeta}
+      />
+      <BlueprintSettings
+        blueprintLink={survey.blueprintLink}
+        blueprintRows={survey.blueprintRows}
+        selectedBlueprintRows={survey.selectedBlueprintRows}
+        onBlueprintLinkChange={handleBlueprintLinkChange}
+        onToggleBlueprintRow={toggleBlueprintRow}
       />
       <Toolbar
         left={<span className={styles.pageTitle} style={{ fontSize: '20px' }}>Вопросы</span>}
@@ -220,31 +322,21 @@ export const SurveyBuilder = ({
       />
       <QuestionList
         questions={survey.questions}
+        canUseBlueprint={hasBlueprintLink}
+        blueprintTags={blueprintTags}
         onUpdateQuestion={updateQuestion}
         onRemoveQuestion={removeQuestion}
+        onReorderQuestions={handleReorderQuestions}
       />
-      <Toolbar 
+      <Toolbar
         left={
-          <Button 
-            className={styles.addBtn}
-            onClick={handleSave}
-            disabled={isSubmitDisabled}
-          >
-            {isEditMode 
-              ? 'Сохранить изменения'
-              : 'Создать опрос'
-            }  
+          <Button className={styles.addBtn} onClick={handleSave} disabled={isSubmitDisabled}>
+            {isEditMode ? 'Сохранить изменения' : 'Создать опрос'}
           </Button>
         }
         right={
-          <Button 
-            onClick={handleDelete}
-            className={styles.removeBtn}
-          >
-            {isEditMode 
-              ? 'Удалить опрос'
-              : 'Отмена создания опроса'
-            }
+          <Button onClick={handleDelete} className={styles.removeBtn}>
+            {isEditMode ? 'Удалить опрос' : 'Отмена создания опроса'}
           </Button>
         }
       />

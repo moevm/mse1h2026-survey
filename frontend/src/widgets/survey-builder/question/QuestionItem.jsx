@@ -1,9 +1,10 @@
 import { Input } from '@shared/ui/input'
+import { Button } from '@shared/ui/button'
 import { Card } from '@shared/ui/card'
 import { Toggle } from '@shared/ui/toggle'
-import { Button } from '@shared/ui/button'
 import { Toolbar } from '@shared/ui/toolbar'
 import { Editor } from './Editor'
+import { MdDragIndicator } from 'react-icons/md'
 import styles from '../SurveyBuilder.module.css'
 
 const questionType = {
@@ -16,17 +17,20 @@ const questionType = {
 
 const defaultEditContent = {
   text: [],
-  scale: { min: 0, max: 0, step: 1 },
-  radio: ['Вариант 1'],
-  checkbox: ['Вариант 1'],
+  scale: { min: 0, max: 10, step: 1 },
+  radio: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
+  checkbox: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
   blueprint: [],
 }
 
-export const QuestionItem = ({ 
-  question, 
-  number, 
-  onUpdate, 
-  onRemove 
+export const QuestionItem = ({
+  question,
+  number,
+  canUseBlueprint,
+  blueprintTags,
+  onUpdate,
+  onRemove,
+  dragHandleProps,
 }) => {
   const isBlueprint = question.type === 'blueprint'
 
@@ -35,23 +39,34 @@ export const QuestionItem = ({
   }
 
   const handleTypeChange = (newType) => {
+    if (newType === 'blueprint' && !canUseBlueprint) return
+
     const listTypes = ['radio', 'checkbox']
     const isOldList = listTypes.includes(question.type)
     const isNewList = listTypes.includes(newType)
 
-    const nextOptions = (isOldList && isNewList)
-      ? question.options
-      : defaultEditContent[newType]
+    const nextOptions =
+      isOldList && isNewList ? question.options : defaultEditContent[newType]
 
     onUpdate(question.id, { type: newType, options: nextOptions })
   }
 
   return (
     <Card className={styles.card}>
+      <div className={styles.questionHeader}>
+        <span {...dragHandleProps} className={styles.dragHandle} aria-label="Перетащить вопрос">
+          <MdDragIndicator size={20} />
+        </span>
+        <span className={styles.questionNumber}>
+          {isBlueprint
+            ? `Шаблонная группа`
+            : `Вопрос №${number}`}
+        </span>
+      </div>
+
       <div className={styles.row}>
         {!isBlueprint && (
           <div className={styles.inputBlock}>
-            <span className={styles.label}>Вопрос №{number}</span>
             <Input
               value={question.title ?? ''}
               onChange={(e) => handleChange('title', e.target.value)}
@@ -66,9 +81,21 @@ export const QuestionItem = ({
             className={styles.field}
             value={question.type}
             onChange={(e) => handleTypeChange(e.target.value)}
+            title={
+              !canUseBlueprint
+                ? 'Введите ссылку на таблицу, чтобы выбрать шаблонный вопрос'
+                : undefined
+            }
           >
             {Object.entries(questionType).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+              <option
+                key={key}
+                value={key}
+                disabled={key === 'blueprint' && !canUseBlueprint && question.type !== 'blueprint'}
+                title={key === 'blueprint' && !canUseBlueprint ? 'Введите ссылку на таблицу' : undefined}
+              >
+                {label}
+              </option>
             ))}
           </select>
         </div>
@@ -76,20 +103,25 @@ export const QuestionItem = ({
 
       <div className={styles.inputBlock}>
         <Editor
+          questionId={question.id}
           type={question.type}
           options={question.options}
+          startNumber={number}
+          blueprintTags={blueprintTags}
           onUpdate={(next) => handleChange('options', next)}
         />
       </div>
 
       <Toolbar
         left={
-          <Toggle
-            id={`req-${question.id}`}
-            label="Обязательный вопрос"
-            checked={question.isRequired}
-            onChange={(val) => handleChange('isRequired', val)}
-          />
+          !isBlueprint && (
+            <Toggle
+              id={`req-${question.id}`}
+              label="Обязательный вопрос"
+              checked={Boolean(question.isRequired)}
+              onChange={(val) => handleChange('isRequired', val)}
+            />
+          )
         }
         right={
           <Button onClick={() => onRemove(question.id)} className={styles.removeBtn}>

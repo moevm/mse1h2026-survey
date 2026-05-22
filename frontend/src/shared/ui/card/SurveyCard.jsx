@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card } from '@shared/ui/card';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
@@ -5,6 +6,9 @@ import { Button } from '@/shared/ui/button';
 import { FiEdit2 } from "react-icons/fi";
 import { FiPower } from "react-icons/fi";
 import { FiCopy } from "react-icons/fi";
+import { FiClipboard } from "react-icons/fi";
+import { FiDownload } from "react-icons/fi";
+import { FiChevronDown } from "react-icons/fi";
 import { FiTrash2 } from "react-icons/fi";
 
 import clsx from "clsx";
@@ -19,8 +23,12 @@ export const SurveyCard = ({
   data, 
   onEdit, 
   onDelete, 
-  onToggle 
+  onToggle,
+  onClone,
+  onExport
 }) => {
+  const [isExportOpen, setIsExportOpen] = useState(false)
+
   const { 
     id, 
     title, 
@@ -28,6 +36,7 @@ export const SurveyCard = ({
     questions, 
     is_active 
   } = data;
+  const answersCount = data.answers_count ?? data.answersCount ?? data.responses_count ?? data.response_count ?? 0
 
   const currentStatus = is_active 
     ? statusConfig['active'] 
@@ -46,6 +55,11 @@ export const SurveyCard = ({
       document.execCommand('copy')
       document.body.removeChild(input)
     }
+  }
+
+  const handleExport = (format) => {
+    onExport(id, format)
+    setIsExportOpen(false)
   }
   
   return (
@@ -67,40 +81,86 @@ export const SurveyCard = ({
           <span className={styles.countDivider}>/</span>
           <span className={styles.countLabel}>Вопросов:</span>
           <span className={styles.countValue}>{questions?.length || 0}</span>
+          <span className={styles.countDivider}>/</span>
+          <span className={styles.countLabel}>Ответов:</span>
+          <span className={styles.countValue}>{answersCount}</span>
         </div>
 
-        <div className={styles.actions}>          
-          <Button 
-            className={clsx(styles.iconBtn, styles.editBtn)} 
-            onClick={() => onEdit(id)}
-            title="Редактировать"
-          >
-            <FiEdit2 className={styles.icon} />
-          </Button>
+        <div className={styles.actions}>
+          <div className={styles.actionGroup} aria-label="Управление опросом">
+            <Button 
+              className={clsx(styles.iconBtn, styles.editBtn)} 
+              onClick={() => onEdit(id)}
+              title="Редактировать"
+            >
+              <FiEdit2 className={styles.icon} />
+            </Button>
 
-          <Button
-            className={clsx(styles.iconBtn, styles.copyBtn)}
-            onClick={handleCopyLink}
-            title="Скопировать ссылку на опрос"
-          >
-            <FiCopy className={styles.icon} />
-          </Button>
+            <Button 
+              className={clsx(styles.iconBtn, styles.turnBtn)} 
+              onClick={() => onToggle(id)}
+              title="Изменить статус"
+            >
+              <FiPower className={styles.icon} />
+            </Button>
+            
+            <Button 
+              className={clsx(styles.iconBtn, styles.deleteBtn)} 
+              onClick={() => onDelete(id)}
+              title="Удалить"
+            >
+              <FiTrash2 className={styles.icon} />
+            </Button>
+          </div>
 
-          <Button 
-            className={clsx(styles.iconBtn, styles.turnBtn)} 
-            onClick={() => onToggle(id)}
-            title="Изменить статус"
-          >
-            <FiPower className={styles.icon} />
-          </Button>
-          
-          <Button 
-            className={clsx(styles.iconBtn, styles.deleteBtn)} 
-            onClick={() => onDelete(id)}
-            title="Удалить"
-          >
-            <FiTrash2 className={styles.icon} />
-          </Button>
+          <div className={styles.actionGroup} aria-label="Копирование">
+            <Button
+              className={clsx(styles.iconBtn, styles.cloneBtn)}
+              onClick={() => onClone(id)}
+              title="Клонировать опрос"
+            >
+              <FiClipboard className={styles.icon} />
+            </Button>
+
+            <Button
+              className={clsx(styles.iconBtn, styles.copyBtn)}
+              onClick={handleCopyLink}
+              title="Скопировать ссылку на опрос"
+            >
+              <FiCopy className={styles.icon} />
+            </Button>
+          </div>
+
+          <div className={styles.statsGroup} aria-label="Статистика">
+            <div className={styles.exportWrapper}>
+              <Button
+                className={clsx(styles.exportBtn, styles.exportMainBtn)}
+                onClick={() => handleExport('pdf')}
+                title="Выгрузить статистику"
+              >
+                <FiDownload className={styles.icon} />
+                Выгрузить
+              </Button>
+              <Button
+                className={clsx(styles.exportBtn, styles.exportArrowBtn)}
+                onClick={() => setIsExportOpen((prev) => !prev)}
+                title="Выбрать формат выгрузки"
+              >
+                <FiChevronDown className={styles.icon} />
+              </Button>
+
+              {isExportOpen && (
+                <div className={styles.exportMenu}>
+                  <button type="button" onClick={() => handleExport('pdf')}>
+                    PDF
+                  </button>
+                  <button type="button" onClick={() => handleExport('excel')}>
+                    Excel
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </Card>

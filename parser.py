@@ -114,14 +114,20 @@ def _fetch_records(url: str) -> list[dict]:
     return all_records
 
 
-def _populate(records: list[dict], session: Session) -> dict:
+def _populate(records: list[dict], session: Session, survey_id: str = None) -> dict:
     teacher_cache: dict[str, Teacher] = {t.name: t for t in session.query(Teacher).all()}
     discipline_cache: dict[str, Discipline] = {d.name: d for d in session.query(Discipline).all()}
     group_cache: dict[str, Group] = {g.name: g for g in session.query(Group).all()}
 
+    query = session.query(GroupTeacherDiscipline)
+    if survey_id:
+        query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
+    else:
+        query = query.filter(GroupTeacherDiscipline.survey_id.is_(None))
+
     existing_triples: set[tuple[int, int, int]] = {
         (a.group_id, a.teacher_id, a.discipline_id)
-        for a in session.query(GroupTeacherDiscipline).all()
+        for a in query.all()
     }
 
     def get_or_create_teacher(name: str) -> Teacher:
@@ -158,6 +164,7 @@ def _populate(records: list[dict], session: Session) -> dict:
             triple = (group.id, teacher.id, discipline.id)
             if triple not in existing_triples:
                 session.add(GroupTeacherDiscipline(
+                    survey_id=survey_id,
                     group=group,
                     teacher=teacher,
                     discipline=discipline,
@@ -174,40 +181,7 @@ def _populate(records: list[dict], session: Session) -> dict:
     }
 
 
-def parse_and_populate(url: str, session: Session) -> dict:
+def parse_and_populate(url: str, session: Session, survey_id: str = None) -> dict:
     records = _fetch_records(url)
-    stats = _populate(records, session)
+    stats = _populate(records, session, survey_id)
     return stats
-
-
-def detect_columns_from_url(url: str) -> dict[str, str]:
-    KEYWORDS = {
-        "teacher":     "преподаватель",
-        "discipline":  "дисциплина",
-        "group":       "группа",
-    }
-
-    sheet_id = extract_sheet_id(url)
-    workbook = download_workbook(sheet_id)
-
-    df = workbook.parse(workbook.sheet_names[0], header=None)
-
-    temp = {}
-    for key, keyword in KEYWORDS.items():
-        matches = [val for val in df.iloc[0].fillna("").astype(str) if keyword in val.lower()]
-        if not matches:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Не найдена колонка '{keyword}' в заголовках листа.",
-            )
-        temp[key] = matches[0].strip()
-
-    
-    result = {}
-
-    counter = 1
-    for item in temp.values():
-        result[f"option{counter}"] = item.split()[0]
-        counter += 1
-
-    return result

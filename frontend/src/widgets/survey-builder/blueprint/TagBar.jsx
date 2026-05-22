@@ -30,7 +30,7 @@ export const TagBar = ({ inputRef, value, onChange, tags }) => {
           className={styles.tagBtn}
           onClick={() => handleInsert(tag.value)}
         >
-          + {tag.label}
+          + {tag.option}
         </button>
       ))}
     </div>

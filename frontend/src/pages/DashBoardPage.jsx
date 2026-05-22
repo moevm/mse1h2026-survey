@@ -44,8 +44,177 @@ export const DashBoardPage = () => {
     navigate(`/builder/${id}`)
   }
 
+  const cloneQuestions = (questions = []) => (
+    questions.map((question) => ({
+      ...question,
+      id: crypto.randomUUID(),
+      options: question.type === 'blueprint' && Array.isArray(question.options)
+        ? cloneQuestions(question.options)
+        : Array.isArray(question.options)
+          ? [...question.options]
+          : question.options && typeof question.options === 'object'
+            ? { ...question.options }
+            : question.options
+    }))
+  )
+
+  const handleClone = async (id) => {
+    const targetSurvey = surveys.find((survey) => survey.id === id)
+    if (!targetSurvey) return
+
+    const clonedSurvey = {
+      ...targetSurvey,
+      id: crypto.randomUUID(),
+      title: `${targetSurvey.title} Copy`,
+      questions: cloneQuestions(targetSurvey.questions),
+    }
+
+    try {
+      const formData = new FormData()
+      formData.append('title', clonedSurvey.title)
+      formData.append('description', clonedSurvey.description ?? '')
+      formData.append('is_active', clonedSurvey.is_active ?? false)
+      formData.append('questions', JSON.stringify(clonedSurvey.questions ?? []))
+      formData.append('groups', JSON.stringify(clonedSurvey.groups ?? ['3341']))
+
+      const createdSurvey = await request('POST', '/survey', formData)
+      setSurveys((prevSurveys) => [...prevSurveys, createdSurvey])
+    } catch (err) {
+      console.error(err)
+      setSurveys((prevSurveys) => [...prevSurveys, clonedSurvey])
+    }
+  }
+
   const handleCreate = async () => {
     navigate(`/builder`)
+  }
+
+  const downloadFile = (content, filename, type) => {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  const escapeHtml = (value) => (
+    String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;')
+  )
+
+  const getSurveyStats = async (id) => {
+    try {
+      return await request('GET', `/survey/answers/${id}`)
+    } catch (err) {
+      console.error(err)
+      return { count: 0, answers_list: [] }
+    }
+  }
+
+  const getMockExportStats = (survey, stats) => {
+    const answerCount = stats.count ?? stats.answers_list?.length ?? 0
+    const questionCount = survey.questions?.length ?? 0
+
+    return [
+      {
+        metric: 'Количество ответов',
+        value: answerCount,
+        comment: 'Берется из текущей ручки ответов',
+      },
+      {
+        metric: 'Количество вопросов',
+        value: questionCount,
+        comment: 'Берется из карточки опроса',
+      },
+      {
+        metric: 'Средняя заполненность',
+        value: '86%',
+        comment: 'Мок до готовности backend статистики',
+      },
+      {
+        metric: 'Самая активная группа',
+        value: '3341',
+        comment: 'Мок до готовности backend статистики',
+      },
+    ]
+  }
+
+  const buildStatsTable = (survey, stats, fileStats) => {
+    const rows = fileStats.map((item, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(item.metric)}</td>
+        <td>${escapeHtml(item.value)}</td>
+        <td>${escapeHtml(item.comment)}</td>
+      </tr>
+    `).join('')
+
+    return `
+      <h1>${escapeHtml(survey.title)}</h1>
+      <p>${escapeHtml(survey.description)}</p>
+      <p><b>Ответов:</b> ${stats.count ?? stats.answers_list?.length ?? 0}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Метрика</th>
+            <th>Значение</th>
+            <th>Комментарий</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    `
+  }
+
+  const handleExport = async (id, format) => {
+    const targetSurvey = surveys.find((survey) => survey.id === id)
+    if (!targetSurvey) return
+
+    const stats = await getSurveyStats(id)
+    const fileStats = getMockExportStats(targetSurvey, stats)
+    const table = buildStatsTable(targetSurvey, stats, fileStats)
+    const safeTitle = String(targetSurvey.title ?? 'survey').replace(/[\\/:*?"<>|]/g, '_')
+
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: Arial, sans-serif; color: #111; }
+            h1 { font-size: 22px; margin-bottom: 8px; }
+            p { margin: 6px 0; }
+            table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+            th, td { border: 1px solid #d0d0d0; padding: 8px; text-align: left; vertical-align: top; }
+            th { background: #f3f3f3; }
+          </style>
+        </head>
+        <body>${table}</body>
+      </html>
+    `
+
+    if (format === 'excel') {
+      downloadFile(html, `${safeTitle}-stats.xls`, 'application/vnd.ms-excel;charset=utf-8')
+      return
+    }
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
   }
 
   const handleToggle = async (id) => {
@@ -92,6 +261,8 @@ export const DashBoardPage = () => {
           onDelete={handleRemove}
           onEdit={handleEdit}
           onToggle={handleToggle}
+          onClone={handleClone}
+          onExport={handleExport}
         />
       </Container>
     </Main>

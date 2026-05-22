@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 import uuid
-from utils.parser import parse_and_populate
+from utils.parser import parse_and_populate, detect_columns_from_url
 
 DEFAULT_SCHEDULE_RECORDS = [
     {"teacher": "Иванов Сергей Петрович", "discipline": "Алгоритмы и структуры данных", "groups": ["3341"]},
@@ -938,3 +938,14 @@ def get_teacher_assignments(teacher_id: str, db: Session = Depends(get_db), curr
 def get_discipline_assignments(discipline_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.discipline_id == discipline_id).all()
     return assignments
+
+@app.get("/sheets/columns")
+def get_column_map(current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    google_sheets_link = os.getenv('GOOGLE_SHEETS_LINK', default='')
+
+    if not google_sheets_link:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Ссылка на гугл таблицы не была установлена'
+        )
+    return detect_columns_from_url(google_sheets_link)

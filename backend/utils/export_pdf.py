@@ -13,7 +13,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from visualization_functions import SurveyVisualizer
+from utils.visualization_functions import SurveyVisualizer, normalize_question_type, get_question_id, get_question_text, get_question_options
 
 
 class PDFExporter:
@@ -183,9 +183,9 @@ class PDFExporter:
                                    include_charts: bool) -> List:
         story = []
 
-        question_id = question.get('id')
-        question_text = question.get('text', f"Question {question_id}")
-        question_type = question.get('type', 'text')
+        question_id = get_question_id(question)
+        question_text = get_question_text(question)
+        question_type = normalize_question_type(question.get('type', 'text'))
 
         values = self.visualizer.get_question_values(survey_id, question_id)
 
@@ -197,7 +197,7 @@ class PDFExporter:
         story.append(Spacer(1, 0.2*cm))
 
         if question_type == 'choice':
-            story.extend(self._create_choice_analysis(values))
+            story.extend(self._create_choice_analysis(values, get_question_options(question)))
         elif question_type in ['number', 'integer', 'float']:
             story.extend(self._create_numeric_analysis(values))
         elif question_type == 'boolean':
@@ -240,9 +240,9 @@ class PDFExporter:
 
         return story
 
-    def _create_choice_analysis(self, values: pd.Series) -> List:
+    def _create_choice_analysis(self, values: pd.Series, options: Optional[List[str]] = None) -> List:
         story = []
-        stats = self.visualizer.stats.choice_stats(values)
+        stats = self.visualizer.stats.choice_stats(values, options)
 
         if stats['total'] == 0:
             return []

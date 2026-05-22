@@ -13,6 +13,67 @@ import re
 from collections import Counter
 
 
+CHOICE_TYPES = {"choice", "radio", "radiobutton", "checkbox", "select", "multiple"}
+NUMERIC_TYPES = {"number", "integer", "float", "scale", "scalequestion"}
+BOOLEAN_TYPES = {"boolean", "bool"}
+TEXT_TYPES = {"text", "freequestion", "textarea", "string"}
+
+
+def normalize_question_type(question_type: Any) -> str:
+    """Приводит типы вопросов frontend/backend к типам визуализатора."""
+    normalized = str(question_type or "text").strip().lower()
+    if normalized in CHOICE_TYPES:
+        return "choice"
+    if normalized in NUMERIC_TYPES:
+        return "number"
+    if normalized in BOOLEAN_TYPES:
+        return "boolean"
+    if normalized in TEXT_TYPES:
+        return "text"
+    return normalized or "text"
+
+
+def get_question_id(question: Dict[str, Any]) -> Any:
+    return question.get("id", question.get("id_question", question.get("question_id")))
+
+
+def get_question_text(question: Dict[str, Any]) -> str:
+    q_id = get_question_id(question)
+    return question.get("text") or question.get("title") or question.get("question") or f"Question {q_id}"
+
+
+def get_question_options(question: Dict[str, Any]) -> Optional[List[str]]:
+    options = question.get("answers") or question.get("options") or question.get("choices")
+    if options is None:
+        return None
+    return [str(option) for option in options]
+
+
+def get_answer_question_id(answer_item: Dict[str, Any]) -> Any:
+    return answer_item.get(
+        "question_id",
+        answer_item.get("id_question", answer_item.get("q_id", answer_item.get("id")))
+    )
+
+
+def get_answer_value(answer_item: Dict[str, Any]) -> Any:
+    if "value" in answer_item:
+        value = answer_item["value"]
+    elif "answer" in answer_item:
+        value = answer_item["answer"]
+    elif "val" in answer_item:
+        value = answer_item["val"]
+    else:
+        value = None
+
+    # Checkbox/мультиответы часто приходят списком. Для статистики вариантов удобнее хранить как строку.
+    if isinstance(value, list):
+        if len(value) == 1:
+            return value[0]
+        return ", ".join(map(str, value))
+    return value
+
+
 class Survey:
     def __init__(self, id: int, title: str, description: str, questions: Union[str, List],
                  is_active: bool = True, created_at: datetime = None):
@@ -160,10 +221,10 @@ class SurveyVisualizer:
                 'created_at': ans.created_at
             }
             # Создаем словарь для ответов
-            answers_dict = {a.get('question_id'): a.get('value') for a in ans.answers}
+            answers_dict = {get_answer_question_id(a): get_answer_value(a) for a in ans.answers}
 
             for q in survey.questions:
-                q_id = q.get('id')
+                q_id = get_question_id(q)
                 row[f'q_{q_id}'] = answers_dict.get(q_id)
 
             rows.append(row)
@@ -172,7 +233,7 @@ class SurveyVisualizer:
         question_columns = []
         for survey in self.surveys.values():
             for q in survey.questions:
-                q_id = q.get('id')
+                q_id = get_question_id(q)
                 question_columns.append(f'q_{q_id}')
 
         all_columns = base_columns + question_columns
@@ -184,9 +245,9 @@ class SurveyVisualizer:
         # Конвертируем числовые колонки
         for survey in self.surveys.values():
             for q in survey.questions:
-                q_id = q.get('id')
+                q_id = get_question_id(q)
                 col = f'q_{q_id}'
-                if col in df.columns and q.get('type') in ['number', 'integer', 'float']:
+                if col in df.columns and normalize_question_type(q.get('type')) == 'number':
                     df[col] = pd.to_numeric(df[col], errors='coerce')
 
         return df

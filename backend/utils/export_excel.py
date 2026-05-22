@@ -6,7 +6,15 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, PieChart, Reference
 import io
 
-from visualization_functions import Survey, SurveyVisualizer
+from utils.visualization_functions import Survey, SurveyVisualizer, normalize_question_type, get_question_id, get_question_text, get_question_options
+
+
+def _excel_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, (list, dict, tuple, set)):
+        return str(value)
+    return str(value) if value.__class__.__name__ == "UUID" else value
 
 
 class ExcelExporter:
@@ -67,7 +75,7 @@ class ExcelExporter:
         for i, (label, value) in enumerate(info_data, start=3):
             ws[f'A{i}'] = label
             ws[f'A{i}'].font = header_font
-            ws[f'B{i}'] = value
+            ws[f'B{i}'] = _excel_value(value)
             ws[f'A{i}'].border = border
             ws[f'B{i}'].border = border
 
@@ -85,7 +93,7 @@ class ExcelExporter:
 
         headers = ['Answer ID', 'Group', 'Date']
         for q in survey.questions:
-            headers.append(q.get('text', f"Q{q.get('id')}"))
+            headers.append(get_question_text(q))
 
         ws.append(headers)
 
@@ -96,9 +104,9 @@ class ExcelExporter:
                 row.get('created_at', '')
             ]
             for q in survey.questions:
-                col_name = f'q_{q.get("id")}'
+                col_name = f'q_{get_question_id(q)}'
                 row_data.append(row.get(col_name, ''))
-            ws.append(row_data)
+            ws.append([_excel_value(value) for value in row_data])
 
         for cell in ws[1]:
             cell.font = Font(bold=True)
@@ -116,9 +124,9 @@ class ExcelExporter:
             ws.column_dimensions[col_letter].width = max_length + 2
 
     def _create_question_stats_sheet(self, wb: Workbook, survey_id: int, question: Dict):
-        question_id = question.get('id')
-        question_text = question.get('text', f"Question {question_id}")
-        question_type = question.get('type', 'text')
+        question_id = get_question_id(question)
+        question_text = get_question_text(question)
+        question_type = normalize_question_type(question.get('type', 'text'))
 
         sheet_name = f"Q{question_id}"
         ws = wb.create_sheet(sheet_name)
@@ -135,7 +143,7 @@ class ExcelExporter:
         row = 4
 
         if question_type == 'choice':
-            stats = self.visualizer.stats.choice_stats(values)
+            stats = self.visualizer.stats.choice_stats(values, get_question_options(question))
 
             ws[f'A{row}'] = "Response Distribution"
             ws[f'A{row}'].font = Font(bold=True)
@@ -148,7 +156,7 @@ class ExcelExporter:
             ws[f'B{row}'] = stats['unique']
             row += 1
             ws[f'A{row}'] = "Most common"
-            ws[f'B{row}'] = stats['most_common']
+            ws[f'B{row}'] = _excel_value(stats['most_common'])
             ws[f'C{row}'] = f"({stats['most_common_count']} times)"
             row += 2
 
@@ -158,7 +166,7 @@ class ExcelExporter:
 
             for option, count in stats['distribution'].items():
                 percent = (count / stats['total'] * 100) if stats['total'] > 0 else 0
-                ws[f'A{row}'] = option
+                ws[f'A{row}'] = _excel_value(option)
                 ws[f'B{row}'] = count
                 ws[f'C{row}'] = f"{percent:.1f}%"
                 row += 1
@@ -336,7 +344,7 @@ class MultiSurveyExporter:
         row = 7
         for survey_id, survey in self.visualizer.surveys.items():
             answer_count = len(self.visualizer.get_survey_data(survey_id))
-            ws[f'A{row}'] = survey_id
+            ws[f'A{row}'] = _excel_value(survey_id)
             ws[f'B{row}'] = survey.title
             ws[f'C{row}'] = len(survey.questions)
             ws[f'D{row}'] = answer_count

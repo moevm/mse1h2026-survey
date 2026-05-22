@@ -68,7 +68,25 @@
 .actions {
   display: flex;
   width: 100%;
-  gap: 16px;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actionGroup,
+.statsGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  background-color: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 10px;
+}
+
+.statsGroup {
+  flex: 1 1 190px;
+  min-width: 190px;
 }
 
 .surveyCard .iconBtn {
@@ -84,9 +102,77 @@
   transition: all 0.2s ease;
 }
 
-.editBtn {
+.exportWrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 140px;
+}
+
+.surveyCard .exportBtn {
+  background-color: #fff;
+  border: 1px solid #eee;
+  box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.025);
+  height: 40px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #000;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.exportMainBtn {
   flex: 1;
-  max-width: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.exportArrowBtn {
+  width: 40px;
+  max-width: 40px;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  padding: 0;
+}
+
+.exportBtn:hover {
+  background-color: #f7f7f7;
+  border-color: #e5e5e5;
+  filter: none;
+}
+
+.exportMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: 6px;
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.exportMenu button {
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #000;
+  text-align: left;
+  font-size: 14px;
+}
+
+.exportMenu button:hover {
+  background-color: #f3f3f3;
+}
+
+.editBtn {
+  width: 40px;
+  flex-shrink: 0;
 }
 
 .editBtn:hover {
@@ -96,12 +182,15 @@
 }
 
 .copyBtn,
-.turnBtn, .deleteBtn {
+.cloneBtn,
+.turnBtn,
+.deleteBtn {
   width: 40px;
   flex-shrink: 0;
 }
 
 .copyBtn:hover,
+.cloneBtn:hover,
 .turnBtn:hover {
   background-color: #f7f7f7;
   border-color: #e5e5e5;

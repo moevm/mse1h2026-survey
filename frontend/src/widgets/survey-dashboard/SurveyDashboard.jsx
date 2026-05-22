@@ -8,7 +8,9 @@ export const SurveyDashboard = ({
   onCreate,
   onDelete,
   onEdit,
-  onToggle
+  onToggle,
+  onClone,
+  onExport
 }) => {
   const isEmpty = surveys.length === 0;
 
@@ -37,6 +39,8 @@ export const SurveyDashboard = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onToggle={onToggle}
+              onClone={onClone}
+              onExport={onExport}
             />
           ))
         )}

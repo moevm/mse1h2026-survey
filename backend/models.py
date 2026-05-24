@@ -23,6 +23,7 @@ class Survey(Base):
     lifetime_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     questions: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, default=list)
     photo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    google_sheets_link: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -113,12 +114,15 @@ class GroupTeacherDiscipline(Base):
     __tablename__ = "group_teacher_disciplines"
     __table_args__ = (
         UniqueConstraint(
-            "group_id", "teacher_id", "discipline_id",
-            name="uq_group_teacher_discipline",
+            "survey_id", "group_id", "teacher_id", "discipline_id",
+            name="uq_survey_group_teacher_discipline",
         ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    survey_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("surveys.id", ondelete="CASCADE"), nullable=True
+    )
     group_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
     )
@@ -129,6 +133,7 @@ class GroupTeacherDiscipline(Base):
         UUID(as_uuid=True), ForeignKey("disciplines.id", ondelete="CASCADE"), nullable=False
     )
 
+    survey: Mapped["Survey"] = relationship()
     group: Mapped["Group"] = relationship(back_populates="assignments")
     teacher: Mapped["Teacher"] = relationship(back_populates="assignments")
     discipline: Mapped["Discipline"] = relationship(back_populates="assignments")

@@ -51,6 +51,7 @@ class SurveyResponse(BaseModel):
     lifetime_seconds: Optional[int] = None
     questions: list[dict]
     photo_path: Optional[str] = None
+    google_sheets_link: Optional[str] = None
     is_active: bool = True
 
 """Лист со всеми опросами"""
@@ -65,6 +66,7 @@ class SurveyUpdate(BaseModel):
     groups: Optional[list[str]] = None
     lifetime_seconds: Optional[int] = None
     questions: Optional[list[dict]] = None
+    google_sheets_link: Optional[str] = None
     is_active: Optional[bool] = None
 
 """Данные для создание отввета на опрос"""
@@ -100,6 +102,7 @@ class UserRegister(BaseModel):
     confirm_password: str = Field(..., min_length=8)
 
 class SetGoogleSheetsLink(BaseModel):
+    survey_id: Optional[UUID] = None
     url: str
     delete_old_data: bool
 
@@ -156,3 +159,4 @@ class AssignmentWithDetails(BaseModel):
     teacher: TeacherResponse
     discipline: DisciplineResponse
     model_config = ConfigDict(from_attributes=True)
+

@@ -14,11 +14,27 @@ export const DashBoardPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const getSurveyAnswerCount = async (id) => {
+    try {
+      const stats = await request('GET', `/survey/answers/${id}`)
+      return stats.count ?? stats.answers_list?.length ?? 0
+    } catch {
+      return 0
+    }
+  }
+
   useEffect(() => {
     const loadSurveys = async () => {
       try {
         const response = await request('GET', `/survey`)
-        setSurveys(response.survey_list)
+        const surveyList = response.survey_list ?? []
+        const surveysWithStats = await Promise.all(
+          surveyList.map(async (survey) => ({
+            ...survey,
+            answers_count: await getSurveyAnswerCount(survey.id)
+          }))
+        )
+        setSurveys(surveysWithStats)
       } catch (err) {
         setError(err)
       } finally {
@@ -78,10 +94,10 @@ export const DashBoardPage = () => {
       formData.append('groups', JSON.stringify(clonedSurvey.groups ?? ['3341']))
 
       const createdSurvey = await request('POST', '/survey', formData)
-      setSurveys((prevSurveys) => [...prevSurveys, createdSurvey])
+      setSurveys((prevSurveys) => [...prevSurveys, { ...createdSurvey, answers_count: 0 }])
     } catch (err) {
       console.error(err)
-      setSurveys((prevSurveys) => [...prevSurveys, clonedSurvey])
+      setSurveys((prevSurveys) => [...prevSurveys, { ...clonedSurvey, answers_count: 0 }])
     }
   }
 

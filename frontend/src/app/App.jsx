@@ -13,12 +13,11 @@ import {
   DashBoardPage, 
   HomePage, 
   LoginPage,
-  RegisterPage
+  RegisterPage,
+  NotFoundPage // Импортируем нашу новую страницу-заглушку
 } from '@pages';
 
 export function App() {
-  const pathParts = window.location.pathname.match(/\/survey\/([^/]+)/);
-  const uuid = pathParts?.[1];
   return (
     <BrowserRouter>
       <Routes>
@@ -29,12 +28,17 @@ export function App() {
         <Route path="/health" element={<HealthPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path={`/survey/${uuid}`}>
-          <Route index element={<Navigate to={`/survey/${uuid}/home`} replace />} />
+        
+        {/* Используем двоеточие :uuid — теперь React Router сам поймет динамический адрес */}
+        <Route path="/survey/:uuid">
+          <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<HomePage />} />
           <Route path="passing" element={<SurveyPassingPage />} />
           <Route path="result" element={<SurveyResultPage />} />
         </Route>
+
+        {/* Хэндлер для любых несуществующих страниц (404) */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

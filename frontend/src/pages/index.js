@@ -6,4 +6,4 @@ export { HealthPage } from './HealthPage'
 export { SurveyBuilderPage } from './SurveyBuilderPage'
 export { LoginPage } from './LoginPage'
 export { RegisterPage } from './RegisterPage'
-
+export { NotFoundPage } from './NotFoundPage'

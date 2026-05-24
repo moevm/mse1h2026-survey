@@ -1,7 +1,7 @@
 from fastapi import FastAPI, status, Body, Depends, HTTPException, Response
 import json
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text, delete
 from database import engine, get_db, Base
@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 import uuid
-from utils.parser import parse_and_populate, detect_columns_from_url
+from utils.parser import parse_and_populate
 
 DEFAULT_SCHEDULE_RECORDS = [
     {"teacher": "Иванов Сергей Петрович", "discipline": "Алгоритмы и структуры данных", "groups": ["3341"]},
@@ -340,8 +340,8 @@ def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db
 
 
 @app.get("/group_data/{group}")
-def get_data_by_group(group: str, db: Session = Depends(get_db)):
-    rows = (
+def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session = Depends(get_db)):
+    query = (
         db.query(
             Group.name.label("group"),
             Teacher.name.label("teacher"),
@@ -350,11 +350,15 @@ def get_data_by_group(group: str, db: Session = Depends(get_db)):
         .join(GroupTeacherDiscipline, GroupTeacherDiscipline.group_id == Group.id)
         .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
         .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
-        # Добавляем фильтрацию
         .filter(Group.name == group)
-        .order_by(Teacher.name, Discipline.name)
-        .all()
     )
+
+    if survey_id:
+        query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
+    else:
+        query = query.filter(GroupTeacherDiscipline.survey_id.is_(None))
+
+    rows = query.order_by(Teacher.name, Discipline.name).all()
 
     if not rows:
         raise HTTPException(
@@ -369,6 +373,32 @@ def get_data_by_group(group: str, db: Session = Depends(get_db)):
     return {
         "teachers": teachers_dict
     }
+
+@app.post("/survey/{id}/set_sheets_link")
+def set_survey_sheets_link(id: UUID, data: SetGoogleSheetsLink, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    
+    survey.google_sheets_link = data.url
+    
+    if data.delete_old_data:
+        clear_schedule_tables(db, survey_id=id)
+    
+    db.commit()
+    return {"status": "success", "google_sheets_link": survey.google_sheets_link}
+
+@app.post("/survey/{id}/import_from_sheets")
+def import_survey_from_sheets(id: UUID, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    
+    if not survey.google_sheets_link:
+        raise HTTPException(status_code=400, detail="Google Sheets link not set for this survey")
+    
+    stats = parse_and_populate(url=survey.google_sheets_link, session=db, survey_id=id)
+    return stats
 
     
 @app.get("/survey", response_model=SurveyList)
@@ -418,6 +448,7 @@ def post_survey(
     questions: str = Form(...),
     groups: str = Form("[]"),
     is_active: bool = Form(True),
+    google_sheets_link: Optional[str] = Form(None),
     photo: Optional[UploadFile] = File(None), 
     db: Session = Depends(get_db),
     current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
@@ -455,7 +486,8 @@ def post_survey(
         questions=questions_list,
         groups=groups_list,
         is_active=is_active,
-        photo_path=final_photo_path
+        photo_path=final_photo_path,
+        google_sheets_link=google_sheets_link
     )
     
     db.add(new_survey)
@@ -467,47 +499,6 @@ def post_survey(
         db.rollback()
         raise HTTPException(
             detail=f"Something goes wrong:{e}",
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-    
-    return new_survey
-
-
-@app.post("/survey/{id}/copy", response_model=SurveyResponse)
-def copy_survey(id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
-    """Создает копию опроса по ID"""
-    survey = db.query(Survey).filter(Survey.id == id).first()
-    if not survey:
-        raise HTTPException(
-            detail="Not found survey with this ID",
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-
-    new_title = f"{survey.title} (копия)"
-    counter = 1
-    while db.query(Survey).filter(Survey.title == new_title).first():
-        new_title = f"{survey.title} (копия {counter})"
-        counter += 1
-
-    new_survey = Survey(
-        title=new_title,
-        description=survey.description,
-        lifetime_seconds=survey.lifetime_seconds,
-        questions=survey.questions,
-        groups=survey.groups,
-        is_active=survey.is_active,
-        photo_path=survey.photo_path
-    )
-    
-    db.add(new_survey)
-
-    try:
-        db.commit()
-        db.refresh(new_survey)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            detail=f"Something goes wrong: {e}",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
     
@@ -584,224 +575,6 @@ def get_all_answers(id:str, db:Session = Depends(get_db), current_admin: User = 
         "count": answers_count,
         "answers_list": answers_list
     }
-
-
-
-
-
-def _jsonable(value):
-    if isinstance(value, dict):
-        return {str(k): _jsonable(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_jsonable(v) for v in value]
-    if hasattr(value, "item"):
-        value = value.item()
-    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
-        return None
-    return value
-
-
-def _get_survey_or_404(survey_id: str, db: Session) -> Survey:
-    survey = db.query(Survey).filter(Survey.id == survey_id).first()
-    if not survey:
-        raise HTTPException(
-            detail="Not found survey with this ID",
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    return survey
-
-
-def _build_survey_visualizer(survey_id: str, db: Session) -> SurveyVisualizer:
-    """Собирает ORM-модели проекта в формат, который понимают visualization/export utils."""
-    survey = _get_survey_or_404(survey_id, db)
-    answers = db.query(Answer).filter(Answer.survey_id == survey.id).order_by(Answer.created_at).all()
-
-    viz_survey = VizSurvey(
-        id=survey.id,
-        title=survey.title,
-        description=survey.description,
-        questions=survey.questions or [],
-        is_active=survey.is_active,
-        created_at=survey.created_at,
-    )
-
-    viz_answers = [
-        VizAnswer(
-            id=answer.id,
-            survey_id=answer.survey_id,
-            group=answer.group,
-            answers=answer.answers or [],
-            created_at=answer.created_at,
-        )
-        for answer in answers
-    ]
-
-    return SurveyVisualizer([viz_survey], viz_answers)
-
-
-def _get_question_or_404(visualizer: SurveyVisualizer, survey_id: str, question_id: int) -> dict:
-    survey = visualizer.surveys.get(_get_uuid_key(survey_id, visualizer))
-    if not survey:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Survey not found in visualizer")
-
-    for question in survey.questions:
-        if str(get_question_id(question)) == str(question_id):
-            return question
-
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
-
-
-def _get_uuid_key(survey_id: str, visualizer: SurveyVisualizer):
-    # Ключом может быть UUID-объект, а не строка. Сравниваем безопасно через str().
-    for key in visualizer.surveys.keys():
-        if str(key) == str(survey_id):
-            return key
-    return survey_id
-
-
-@app.get("/survey/{id}/stats")
-def get_survey_stats(id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
-    visualizer = _build_survey_visualizer(id, db)
-    survey_id = _get_uuid_key(id, visualizer)
-    survey = visualizer.surveys[survey_id]
-    survey_df = visualizer.get_survey_data(survey_id)
-
-    questions_stats = []
-    for question in survey.questions:
-        question_id = get_question_id(question)
-        question_type = normalize_question_type(question.get("type"))
-        values = visualizer.get_question_values(survey_id, question_id)
-
-        if question_type == "choice":
-            stats_data = visualizer.stats.choice_stats(values, get_question_options(question))
-        elif question_type == "number":
-            stats_data = visualizer.stats.numeric_stats(values)
-        elif question_type == "boolean":
-            stats_data = visualizer.stats.boolean_stats(values)
-        else:
-            stats_data = visualizer.stats.text_stats(values)
-            stats_data["word_frequency"] = visualizer.stats.word_frequency(values, top_n=20)
-
-        questions_stats.append({
-            "question_id": question_id,
-            "question_text": get_question_text(question),
-            "question_type": question_type,
-            "stats": _jsonable(stats_data),
-        })
-
-    group_distribution = {}
-    if not survey_df.empty and "group" in survey_df.columns:
-        group_distribution = survey_df["group"].value_counts().to_dict()
-
-    return {
-        "survey_id": str(survey_id),
-        "title": survey.title,
-        "total_answers": int(len(survey_df)),
-        "group_distribution": _jsonable(group_distribution),
-        "questions": questions_stats,
-    }
-
-
-@app.get("/survey/{id}/visualization/{question_id}")
-def get_question_visualization(
-    id: str,
-    question_id: int,
-    chart_type: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
-):
-    visualizer = _build_survey_visualizer(id, db)
-    survey_id = _get_uuid_key(id, visualizer)
-    question = _get_question_or_404(visualizer, id, question_id)
-    question_type = normalize_question_type(question.get("type"))
-    question_text = get_question_text(question)
-    values = visualizer.get_question_values(survey_id, get_question_id(question))
-
-    if question_type == "choice":
-        fig = visualizer.plot_choice(
-            values,
-            question_text,
-            chart_type=chart_type or "bar",
-            options=get_question_options(question),
-        )
-    elif question_type == "number":
-        fig = visualizer.plot_numeric(values, question_text, chart_type=chart_type or "hist")
-    elif question_type == "boolean":
-        fig = visualizer.plot_boolean(values, question_text, chart_type=chart_type or "bar")
-    else:
-        fig = visualizer.plot_word_cloud(values, question_text) if chart_type == "words" else visualizer.plot_text(values, question_text)
-
-    output = io.BytesIO()
-    fig.savefig(output, format="png", bbox_inches="tight", dpi=160)
-    plt.close(fig)
-    output.seek(0)
-
-    return StreamingResponse(output, media_type="image/png")
-
-
-@app.get("/survey/{id}/visualization/{question_id}/by_group")
-def get_question_visualization_by_group(
-    id: str,
-    question_id: int,
-    normalize: bool = False,
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
-):
-    visualizer = _build_survey_visualizer(id, db)
-    survey_id = _get_uuid_key(id, visualizer)
-    question = _get_question_or_404(visualizer, id, question_id)
-
-    fig = visualizer.plot_choice_by_group(
-        survey_id=survey_id,
-        question_id=get_question_id(question),
-        question_text=get_question_text(question),
-        options=get_question_options(question),
-        normalize=normalize,
-    )
-
-    output = io.BytesIO()
-    fig.savefig(output, format="png", bbox_inches="tight", dpi=160)
-    plt.close(fig)
-    output.seek(0)
-
-    return StreamingResponse(output, media_type="image/png")
-
-
-@app.get("/survey/{id}/export/pdf")
-def export_survey_pdf(
-    id: str,
-    include_charts: bool = True,
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
-):
-    visualizer = _build_survey_visualizer(id, db)
-    survey_id = _get_uuid_key(id, visualizer)
-    pdf_bytes = PDFExporter(visualizer).export_survey_to_pdf(survey_id=survey_id, include_charts=include_charts)
-    filename = f"survey_{id}_report.pdf"
-
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@app.get("/survey/{id}/export/excel")
-def export_survey_excel(
-    id: str,
-    db: Session = Depends(get_db),
-    current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))
-):
-    visualizer = _build_survey_visualizer(id, db)
-    survey_id = _get_uuid_key(id, visualizer)
-    excel_bytes = ExcelExporter(visualizer).export_survey_to_excel(survey_id=survey_id)
-    filename = f"survey_{id}_report.xlsx"
-
-    return StreamingResponse(
-        io.BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 @app.get("/answers/{id}", response_model=AnswerResponse)
 def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
@@ -881,20 +654,19 @@ def delete_answer(id:str, db:Session = Depends(get_db), current_admin: User = De
     return None
 
 
-def clear_schedule_tables(db: Session, current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def clear_schedule_tables(db: Session, survey_id: Optional[UUID] = None, current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     try:
+        query = db.query(GroupTeacherDiscipline)
+        if survey_id:
+            query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
+        else:
+            query = query.filter(GroupTeacherDiscipline.survey_id.is_(None))
+        
         stats = {
-            "groups_deleted": db.query(Group).count(),
-            "teachers_deleted": db.query(Teacher).count(),
-            "disciplines_deleted": db.query(Discipline).count(),
-            "relations_deleted": db.query(GroupTeacherDiscipline).count()
+            "relations_deleted": query.count()
         }
         
-        db.execute(delete(GroupTeacherDiscipline))
-        db.execute(delete(Group))
-        db.execute(delete(Teacher))
-        db.execute(delete(Discipline))
-        
+        query.delete(synchronize_session=False)
         db.commit()
 
         return stats
@@ -909,6 +681,9 @@ def clear_schedule_tables(db: Session, current_admin: User = Depends(RoleChecker
 
 @app.post("/set_google_sheets_link")
 def set_google_sheets_link(data: SetGoogleSheetsLink, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    if data.survey_id:
+        return set_survey_sheets_link(data.survey_id, data, db, current_admin)
+    
     os.environ['GOOGLE_SHEETS_LINK'] = str(data.url)
 
     if data.delete_old_data:
@@ -1197,14 +972,3 @@ def get_teacher_assignments(teacher_id: str, db: Session = Depends(get_db), curr
 def get_discipline_assignments(discipline_id: str, db: Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     assignments = db.query(GroupTeacherDiscipline).filter(GroupTeacherDiscipline.discipline_id == discipline_id).all()
     return assignments
-
-@app.get("/sheets/columns")
-def get_column_map(current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
-    google_sheets_link = os.getenv('GOOGLE_SHEETS_LINK', default='')
-
-    if not google_sheets_link:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Ссылка на гугл таблицы не была установлена'
-        )
-    return detect_columns_from_url(google_sheets_link)

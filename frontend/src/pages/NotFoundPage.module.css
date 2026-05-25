@@ -1,0 +1,40 @@
+.main {
+  display: flex;
+  align-items: center;
+  min-height: calc(100vh - 140px);
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  padding: 40px;
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.message {
+  margin: 0 0 28px;
+  color: #666;
+  font-size: 16px;
+}

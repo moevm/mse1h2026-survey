@@ -9,6 +9,7 @@ import { Button } from "@shared/ui/button";
 import { Container } from "@shared/ui/container";
 import LogoIcon from "@shared/assets/icons/logo.svg?react";
 import { request } from '@shared/api/axios';
+import { NotFoundPage } from './NotFoundPage';
 
 export const HomePage = () => {
   const navigate = useNavigate()
@@ -33,7 +34,9 @@ export const HomePage = () => {
   }
 
   if (status === 'checking') return <div>Загрузка...</div>
-  if (status === 'unavailable') return <div>Опрос не найден или недоступен</div>
+  if (status === 'unavailable') {
+    return <NotFoundPage message="Опрос закрыт, удален или ссылка больше не работает." />
+  }
 
   return (
     <>

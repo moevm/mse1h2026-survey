@@ -17,3 +17,42 @@
   width: 100%;
   flex-grow: 1;
 }
+
+.accessContainer {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.accessMessage {
+  width: 100%;
+  max-width: 560px;
+  padding: 40px;
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+}
+
+.accessMessage h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.accessMessage p {
+  margin: 0 0 24px;
+  color: #666;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.accessButton {
+  padding: 10px 20px;
+  color: #fff;
+  background: #3067ff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}

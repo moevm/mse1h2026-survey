@@ -5,28 +5,51 @@ import styles from '../SurveyBuilder.module.css'
 
 const TEMPLATE_TAG_RE = /\{\{([^{}]+)\}\}/g
 
+const getBaseTag = (tag) => String(tag ?? '').replace(/_\d+$/, '')
+
+const getTagSuffix = (tag) => {
+  const match = String(tag ?? '').match(/_(\d+)$/)
+  return match ? match[1] : '1'
+}
+
 const getOptionValue = (option) => (
   typeof option === 'object' && option !== null ? option.value : option
 )
 
-const getQuestionTag = (question) => {
+const getQuestionTags = (question) => {
   const values = [
     question.title,
     ...(question.answers ?? []).map(getOptionValue),
     ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
   ]
 
-  for (const value of values) {
-    const match = String(value ?? '').match(TEMPLATE_TAG_RE)
-    if (match) return match[0].replace('{{', '').replace('}}', '')
-  }
+  return values.flatMap((value) => (
+    [...String(value ?? '').matchAll(TEMPLATE_TAG_RE)].map((match) => match[1])
+  ))
+}
 
-  return null
+const getQuestionTag = (question) => {
+  const tags = getQuestionTags(question)
+  return tags[0] ?? null
+}
+
+const getBlueprintRelationSuffixes = (questions) => {
+  const suffixes = new Set()
+
+  questions.forEach((question) => {
+    getQuestionTags(question).forEach((tag) => {
+      if (['teacher', 'subject'].includes(getBaseTag(tag))) {
+        suffixes.add(getTagSuffix(tag))
+      }
+    })
+  })
+
+  return suffixes
 }
 
 const getBlueprintModeText = (questions) => {
   for (const question of questions) {
-    const tag = getQuestionTag(question)
+    const tag = getBaseTag(getQuestionTag(question))
 
     if (tag === 'subject') {
       return 'Режим: сначала предмет. Вопросы с преподавателем будут показаны для всех преподавателей выбранного предмета.'
@@ -47,6 +70,20 @@ export const BlueprintEditor = ({
   blueprintTags = [],
   onUpdate,
 }) => {
+  const relationSuffixes = getBlueprintRelationSuffixes(options)
+  const activeRelationSuffix = relationSuffixes.size === 1 ? [...relationSuffixes][0] : null
+  const hasMixedRelationTags = relationSuffixes.size > 1
+  const availableBlueprintTags = blueprintTags.filter((tag) => {
+    const value = tag.value?.replace('{{', '').replace('}}', '')
+    const baseTag = getBaseTag(value)
+
+    if (!activeRelationSuffix || !['teacher', 'subject'].includes(baseTag)) {
+      return true
+    }
+
+    return getTagSuffix(value) === activeRelationSuffix
+  })
+
   const handleAdd = () => {
     onUpdate([
       ...options,
@@ -89,6 +126,12 @@ export const BlueprintEditor = ({
             {getBlueprintModeText(options)}
           </div>
 
+          {hasMixedRelationTags && (
+            <div className={styles.validationMessage}>
+              В одной шаблонной группе нельзя смешивать преподавателя/дисциплину из разных листов. Используйте отдельную шаблонную группу для второй пары F-строк.
+            </div>
+          )}
+
           {options.map((q, idx) => (
             <Draggable key={String(q.id)} draggableId={`bqitem-${String(q.id)}`} index={idx}>
               {(dragProvided, dragSnapshot) => (
@@ -104,7 +147,7 @@ export const BlueprintEditor = ({
                     parentId={String(questionId)}
                     number={startNumber + idx}
                     question={{ ...q, id: String(q.id) }}
-                    blueprintTags={blueprintTags}
+                    blueprintTags={availableBlueprintTags}
                     onUpdate={handleUpdate}
                     onRemove={() => handleRemove(q.id)}
                     onMoveUp={() => handleMove(idx, idx - 1)}

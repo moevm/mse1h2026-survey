@@ -140,6 +140,37 @@ def seed_default_schedule(db: Session):
     db.commit()
 
 
+def get_active_public_survey(id: str, db: Session) -> Survey:
+    survey = db.query(Survey).filter(Survey.id == id).first()
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    if not survey.is_active:
+        raise HTTPException(
+            detail="Survey is not active",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    return survey
+
+
+def flatten_question_ids(questions: list[dict]) -> set[str]:
+    question_ids = set()
+
+    for question in questions:
+        question_id = question.get("id")
+        if question_id is not None:
+            question_ids.add(str(question_id))
+
+        if question.get("type") == "blueprint" and isinstance(question.get("options"), list):
+            question_ids.update(flatten_question_ids(question["options"]))
+
+    return question_ids
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -341,6 +372,19 @@ def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db
 
 @app.get("/group_data/{group}")
 def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session = Depends(get_db)):
+    if not survey_id:
+        raise HTTPException(
+            detail="survey_id is required",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+    survey = get_active_public_survey(str(survey_id), db)
+    if group not in survey.groups:
+        raise HTTPException(
+            detail="Group is not available for this survey",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
     query = (
         db.query(
             Group.name.label("group"),
@@ -353,10 +397,7 @@ def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session 
         .filter(Group.name == group)
     )
 
-    if survey_id:
-        query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
-    else:
-        query = query.filter(GroupTeacherDiscipline.survey_id.is_(None))
+    query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
 
     rows = query.order_by(Teacher.name, Discipline.name).all()
 
@@ -402,7 +443,7 @@ def import_survey_from_sheets(id: UUID, db: Session = Depends(get_db), current_a
 
     
 @app.get("/survey", response_model=SurveyList)
-def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db)):
+def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     survey_list = db.query(Survey).offset((page - 1) * size).limit(size).all()
     survey_count = db.query(Survey).count()
     if not survey_list:
@@ -417,7 +458,7 @@ def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db)):
     }
 
 @app.get("/survey/group/{group}", response_model=SurveyList)
-def get_survey_by_group(group:str, db:Session= Depends(get_db)):
+def get_survey_by_group(group:str, db:Session= Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     surveys= db.query(Survey).filter(Survey.groups.any(group)).all()
     if not surveys:
         raise HTTPException(
@@ -429,8 +470,13 @@ def get_survey_by_group(group:str, db:Session= Depends(get_db)):
         "survey_list":surveys
     }
 
+@app.get("/public/survey/{id}", response_model=PublicSurveyResponse)
+def get_public_survey(id:str, db:Session = Depends(get_db)):
+    return get_active_public_survey(id, db)
+
+
 @app.get("/survey/{id}", response_model=SurveyResponse)
-def get_survey(id:str, db:Session = Depends(get_db)):
+def get_survey(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
     """Находит опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
@@ -590,6 +636,25 @@ def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depen
 
 @app.post("/answers", response_model=AnswerResponse)
 def post_answer(data:AnswerCreate, db:Session = Depends(get_db)):
+    survey = get_active_public_survey(str(data.survey_id), db)
+    if data.group not in survey.groups:
+        raise HTTPException(
+            detail="Group is not available for this survey",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+
+    allowed_question_ids = flatten_question_ids(survey.questions)
+    for answer in data.answers:
+        question_id = str(answer.get("id_question", ""))
+        if (
+            question_id not in allowed_question_ids and
+            not any(question_id.endswith(f"-{allowed_id}") for allowed_id in allowed_question_ids)
+        ):
+            raise HTTPException(
+                detail="Answer contains unknown question",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
     new_answer = Answer(**data.model_dump())
     db.add(new_answer)
 

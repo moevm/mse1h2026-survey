@@ -124,12 +124,12 @@ export const SurveyPassingPage = () => {
   useEffect(() => {
     const loadSurvey = async () => {
       try {
-        const response = await request('GET', `/survey/${uuid}`)
+        const response = await request('GET', `/public/survey/${uuid}`)
         let scheduleData = null
 
         if (group) {
           try {
-            scheduleData = await request('GET', `/group_data/${group}`)
+            scheduleData = await request('GET', `/group_data/${group}`, { survey_id: uuid })
           } catch (err) {
             console.error(err)
           }

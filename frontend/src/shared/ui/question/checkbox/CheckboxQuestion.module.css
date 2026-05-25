@@ -1,0 +1,63 @@
+.item {
+  --current-border: var(--checkbox-border, #a3a3a3);
+  --label-color: var(--checkbox-text, #a3a3a3);
+  --accent: var(--checkbox-accent, #3067ff);
+
+  box-shadow: 0 0 0 1px var(--current-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.item:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.item[data-checked="true"] {
+  --current-border: var(--accent);
+  --label-color: var(--accent);
+}
+
+.item[data-invalid="true"] {
+  --current-border: var(--checkbox-error, #ff4848);
+  --accent: var(--checkbox-error, #ff4848);
+  --label-color: var(--checkbox-error, #ff4848);
+}
+
+.box {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--current-border);
+  border-radius: 4px;
+  flex: 0 0 auto;
+  position: relative;
+}
+
+.item[data-checked="true"] .box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.item[data-checked="true"] .box::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.label {
+  flex: 1;
+  color: var(--label-color);
+  font-size: 16px;
+  line-height: 24px;
+  word-break: break-word;
+}

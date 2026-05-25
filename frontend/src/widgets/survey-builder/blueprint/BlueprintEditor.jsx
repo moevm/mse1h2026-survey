@@ -31,6 +31,15 @@ export const BlueprintEditor = ({
     onUpdate(options.map((q) => (String(q.id) === String(id) ? { ...q, ...fields } : q)))
   }
 
+  const handleMove = (fromIndex, toIndex) => {
+    if (toIndex < 0 || toIndex >= options.length) return
+
+    const next = [...options]
+    const [moved] = next.splice(fromIndex, 1)
+    next.splice(toIndex, 0, moved)
+    onUpdate(next)
+  }
+
   return (
     <Droppable droppableId={`bq-${questionId}`} type="BLUEPRINT_Q">
       {(provided) => (
@@ -57,6 +66,10 @@ export const BlueprintEditor = ({
                     blueprintTags={blueprintTags}
                     onUpdate={handleUpdate}
                     onRemove={() => handleRemove(q.id)}
+                    onMoveUp={() => handleMove(idx, idx - 1)}
+                    onMoveDown={() => handleMove(idx, idx + 1)}
+                    canMoveUp={idx > 0}
+                    canMoveDown={idx < options.length - 1}
                     dragHandleProps={dragProvided.dragHandleProps}
                   />
                 </div>

@@ -274,32 +274,6 @@ const getBlueprintQuestionTagCount = (question) => {
   ), 0)
 }
 
-const getQuestionTagNames = (question) => {
-  const values = [
-    question.title,
-    ...(question.answers ?? []).map(getOptionValue),
-    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
-  ]
-
-  return values.flatMap((value) => (
-    [...String(value ?? '').matchAll(TEMPLATE_TAG_CAPTURE_RE)].map((match) => match[1])
-  ))
-}
-
-const hasMixedBlueprintRelationTags = (questions = []) => {
-  const suffixes = new Set()
-
-  questions.forEach((question) => {
-    getQuestionTagNames(question).forEach((tag) => {
-      if (['teacher', 'subject'].includes(getBaseTag(tag))) {
-        suffixes.add(getTagSuffix(tag))
-      }
-    })
-  })
-
-  return suffixes.size > 1
-}
-
 const hasInvalidListOptions = (question) => {
   if (!['radio', 'checkbox'].includes(question.type)) return false
   const options = getQuestionOptions(question)

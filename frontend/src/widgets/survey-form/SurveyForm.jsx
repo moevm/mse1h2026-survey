@@ -6,6 +6,14 @@ import image from '@shared/assets/images/survey_title.svg'
 import clsx from 'clsx'
 import styles from './SurveyForm.module.css'
 
+const isAnswerFilled = (value) => {
+  if (Array.isArray(value)) {
+    return value.some((item) => String(item ?? '').trim())
+  }
+
+  return value !== undefined && String(value ?? '').trim() !== ''
+}
+
 export const SurveyForm = ({ 
   survey,
   answers,
@@ -31,7 +39,7 @@ export const SurveyForm = ({
     const payload = {
       survey_id: id,
       group,
-      answers: questions.map((question) => {
+      answers: questions.filter((question) => isAnswerFilled(answers[question.id])).map((question) => {
         const value = answers[question.id];
         return {
           id_question: question.id,

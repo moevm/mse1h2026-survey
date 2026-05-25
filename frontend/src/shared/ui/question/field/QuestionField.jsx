@@ -10,6 +10,7 @@ export const QuestionField = ({
   id,
   currentStep,
   totalSteps,
+  isRequired,
   children,
   className,
   ...props
@@ -30,6 +31,7 @@ export const QuestionField = ({
     >
       <Label htmlFor={id} className={styles.title}>
         {`${currentStep}. ${title}`}
+        {isRequired && <span className={styles.requiredMark}>*</span>}
       </Label>
       {children}
       <span className={styles.stepsBlock}>Вопрос {currentStep} из {totalSteps}</span>

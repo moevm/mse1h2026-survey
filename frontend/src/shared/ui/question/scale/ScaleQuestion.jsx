@@ -9,6 +9,7 @@ export const ScaleQuestion = ({
   id,
   currentStep,
   totalSteps,
+  isRequired,
   error,
   disabled,
   min,
@@ -29,6 +30,7 @@ export const ScaleQuestion = ({
       id={id}
       currentStep={currentStep}
       totalSteps={totalSteps}
+      isRequired={isRequired}
       error={error}
       disabled={disabled}
       className={className}

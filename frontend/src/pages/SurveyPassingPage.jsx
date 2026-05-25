@@ -90,6 +90,14 @@ const expandBlueprintQuestions = (questions, scheduleData, group) => {
   return expanded
 }
 
+const isAnswerFilled = (value) => {
+  if (Array.isArray(value)) {
+    return value.some((item) => String(item ?? '').trim())
+  }
+
+  return value !== undefined && String(value ?? '').trim() !== ''
+}
+
 export const SurveyPassingPage = () => {
   const uuid = window.location.pathname.match(/\/survey\/([^/]+)/)?.[1];
   const navigate = useNavigate()
@@ -109,10 +117,9 @@ export const SurveyPassingPage = () => {
     }));
   };
 
-  const isComplete = questions.every((question) => {
-    const val = answers[question.id];
-    return val !== undefined && val !== '';
-  });
+  const isComplete = questions.every((question) => (
+    !question.isRequired || isAnswerFilled(answers[question.id])
+  ));
 
   useEffect(() => {
     const loadSurvey = async () => {

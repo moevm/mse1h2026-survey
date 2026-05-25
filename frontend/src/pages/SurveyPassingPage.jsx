@@ -122,7 +122,7 @@ export const SurveyPassingPage = () => {
 
         if (group) {
           try {
-            scheduleData = await request('GET', `/group_data/${group}`)
+            scheduleData = await request('GET', `/group_data/${group}`, { survey_id: uuid })
           } catch (err) {
             console.error(err)
           }

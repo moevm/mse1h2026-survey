@@ -41,6 +41,10 @@ def _register_cyrillic_fonts() -> tuple[str, str]:
 PDF_FONT_REGULAR, PDF_FONT_BOLD = _register_cyrillic_fonts()
 
 
+def _question_label(question: Dict, index: int) -> str:
+    return question.get("report_label") or f"Question {index}"
+
+
 class PDFExporter:
 
     def __init__(self, visualizer: SurveyVisualizer):
@@ -124,8 +128,8 @@ class PDFExporter:
         story.extend(self._create_survey_summary(survey_id, survey))
         story.append(PageBreak())
 
-        for question in survey.questions:
-            question_content = self._create_question_analysis(survey_id, question, include_charts)
+        for idx, question in enumerate(survey.questions, start=1):
+            question_content = self._create_question_analysis(survey_id, question, include_charts, idx)
             if question_content:
                 story.extend(question_content)
                 story.append(PageBreak())
@@ -205,7 +209,7 @@ class PDFExporter:
         return story
 
     def _create_question_analysis(self, survey_id: int, question: Dict,
-                                   include_charts: bool) -> List:
+                                   include_charts: bool, index: int) -> List:
         story = []
 
         question_id = get_question_id(question)
@@ -217,7 +221,7 @@ class PDFExporter:
         if len(values) == 0:
             return []
 
-        story.append(Paragraph(f"Question {question_id}: {question_text}",
+        story.append(Paragraph(f"{_question_label(question, index)}: {question_text}",
                               self.styles['subheading']))
         story.append(Spacer(1, 0.2*cm))
 

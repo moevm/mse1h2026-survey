@@ -18,14 +18,6 @@ const defaultBlueprintRows = [
 ]
 
 const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
-const TEMPLATE_TAG_CAPTURE_RE = /\{\{([^{}]+)\}\}/g
-
-const getBaseTag = (tag) => String(tag ?? '').replace(/_\d+$/, '')
-
-const getTagSuffix = (tag) => {
-  const match = String(tag ?? '').match(/_(\d+)$/)
-  return match ? match[1] : '1'
-}
 
 const getOptionValue = (option) => (
   typeof option === 'object' && option !== null ? option.value : option
@@ -282,32 +274,6 @@ const getBlueprintQuestionTagCount = (question) => {
   ), 0)
 }
 
-const getQuestionTagNames = (question) => {
-  const values = [
-    question.title,
-    ...(question.answers ?? []).map(getOptionValue),
-    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
-  ]
-
-  return values.flatMap((value) => (
-    [...String(value ?? '').matchAll(TEMPLATE_TAG_CAPTURE_RE)].map((match) => match[1])
-  ))
-}
-
-const hasMixedBlueprintRelationTags = (questions = []) => {
-  const suffixes = new Set()
-
-  questions.forEach((question) => {
-    getQuestionTagNames(question).forEach((tag) => {
-      if (['teacher', 'subject'].includes(getBaseTag(tag))) {
-        suffixes.add(getTagSuffix(tag))
-      }
-    })
-  })
-
-  return suffixes.size > 1
-}
-
 const hasInvalidListOptions = (question) => {
   if (!['radio', 'checkbox'].includes(question.type)) return false
   const options = getQuestionOptions(question)
@@ -444,8 +410,8 @@ export const SurveyBuilder = ({ initialData }) => {
   useEffect(() => {
     const link = survey.blueprintLink.trim()
     if (!link) {
-      setAvailableGroups([])
-      return
+      const timeoutId = window.setTimeout(() => setAvailableGroups([]), 0)
+      return () => window.clearTimeout(timeoutId)
     }
 
     const timeoutId = window.setTimeout(async () => {

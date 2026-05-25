@@ -12,7 +12,7 @@ import styles from './SurveyPassingPage.module.css';
 
 const GROUP_ACCESS_DENIED_DETAIL = 'Group is not available for this survey'
 
-const TEMPLATE_TAG_RE = /\{\{([^{}]+)\}\}/g
+const createTemplateTagRegex = () => /\{\{([^{}]+)\}\}/g
 const PASSING_QUESTION_TYPES = new Set(['radio', 'checkbox', 'scale', 'text'])
 
 const getOptionValue = (option) => (
@@ -68,10 +68,15 @@ const filterDraftAnswers = (draftAnswers, questions) => {
 const getBaseTag = (tag) => String(tag ?? '').replace(/_\d+$/, '')
 
 const replaceBlueprintTags = (value, context) => (
-  String(value ?? '').replace(TEMPLATE_TAG_RE, (match, tag) => {
-    const replacement = context[getBaseTag(tag)]
+  String(value ?? '').replace(createTemplateTagRegex(), (match, tag) => {
+    const baseTag = getBaseTag(tag)
+    const replacement = context[baseTag]
 
-    if (!context.allowedTags?.has(tag) || String(replacement ?? '').trim() === '') {
+    if (!context.allowedTags?.has(tag)) {
+      return match
+    }
+
+    if (String(replacement ?? '').trim() === '') {
       return match
     }
 
@@ -79,10 +84,9 @@ const replaceBlueprintTags = (value, context) => (
   })
 )
 
-const hasBlueprintTags = (value) => {
-  TEMPLATE_TAG_RE.lastIndex = 0
-  return TEMPLATE_TAG_RE.test(String(value ?? ''))
-}
+const hasBlueprintTags = (value) => (
+  createTemplateTagRegex().test(String(value ?? ''))
+)
 
 const hasUnresolvedBlueprintTags = (question) => {
   const values = [
@@ -124,8 +128,8 @@ const getQuestionTag = (question) => {
     ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
   ]
 
-  const tags = values
-    .flatMap(value => [...String(value ?? '').matchAll(TEMPLATE_TAG_RE)].map(match => match[1]))
+const tags = values
+  .flatMap(value => [...String(value ?? '').matchAll(createTemplateTagRegex())].map(match => match[1]))
 
   return tags[0] ?? null
 }
@@ -169,8 +173,8 @@ const getQuestionTags = (question) => {
     ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
   ]
 
-  return values
-    .flatMap(value => [...String(value ?? '').matchAll(TEMPLATE_TAG_RE)].map(match => match[1]))
+return values
+  .flatMap(value => [...String(value ?? '').matchAll(createTemplateTagRegex())].map(match => match[1]))
 }
 
 const usesTeacherTag = (question) => (
@@ -213,82 +217,89 @@ const expandBlueprintQuestions = (questions, scheduleData, group) => {
     const { subjectTeachers, pairs } = getScheduleIndexes(scheduleData)
     const hasTeacherAndSubject = templateQuestions.some(usesTeacherTag) && templateQuestions.some(usesSubjectTag)
 
-    if (hasTeacherAndSubject) {
-      const primaryMode = getFirstRelationMode(templateQuestions)
-      const addQuestion = (templateQuestion, context, fallbackId) => {
-        const normalizedQuestion = normalizeQuestion(templateQuestion, context, fallbackId)
+if (hasTeacherAndSubject) {
+  const primaryMode = getFirstRelationMode(templateQuestions)
 
-        if (!hasUnresolvedBlueprintTags(normalizedQuestion)) {
-          expanded.push(normalizedQuestion)
+  const addQuestion = (templateQuestion, context, fallbackId) => {
+    const normalizedQuestion = normalizeQuestion(templateQuestion, context, fallbackId)
+
+    if (!hasUnresolvedBlueprintTags(normalizedQuestion)) {
+      expanded.push(normalizedQuestion)
+    }
+  }
+
+  if (primaryMode === 'subject') {
+    const subjectTeacherMap = pairs.reduce((result, { teacher, subject }) => {
+      if (!teacher || !subject) return result
+
+      result[subject] = result[subject] ?? []
+      result[subject].push(teacher)
+
+      return result
+    }, {})
+
+    Object.entries(subjectTeacherMap).forEach(([subject, teachers]) => {
+      templateQuestions.forEach((templateQuestion) => {
+        const needsTeacher = usesTeacherTag(templateQuestion)
+        const needsSubject = usesSubjectTag(templateQuestion)
+
+        if (!needsTeacher) {
+          addQuestion(
+            templateQuestion,
+            { teacher: '', subject, group, allowedTags },
+            `${question.id}-${subject}-${templateQuestion.id}`,
+          )
+          return
         }
-      }
 
-      if (primaryMode === 'subject') {
-        const subjectTeacherMap = pairs.reduce((result, { teacher, subject }) => {
-          if (!teacher || !subject) return result
-          result[subject] = result[subject] ?? []
-          result[subject].push(teacher)
-          return result
-        }, {})
-
-        Object.entries(subjectTeacherMap).forEach(([subject, teachers]) => {
-          templateQuestions.forEach((templateQuestion) => {
-            const needsTeacher = usesTeacherTag(templateQuestion)
-            const needsSubject = usesSubjectTag(templateQuestion)
-
-            if (!needsTeacher) {
-              addQuestion(
-                templateQuestion,
-                { teacher: '', subject, group, allowedTags },
-                `${question.id}-${subject}-${templateQuestion.id}`,
-              )
-              return
-            }
-
-            teachers.forEach((teacher) => {
-              addQuestion(
-                templateQuestion,
-                { teacher, subject: needsSubject ? subject : '', group, allowedTags },
-                `${question.id}-${subject}-${teacher}-${templateQuestion.id}`,
-              )
-            })
-          })
+        teachers.forEach((teacher) => {
+          addQuestion(
+            templateQuestion,
+            { teacher, subject: needsSubject ? subject : '', group, allowedTags },
+            `${question.id}-${subject}-${teacher}-${templateQuestion.id}`,
+          )
         })
+      })
+    })
+
+    return
+  }
+
+  const teacherSubjects = pairs.reduce((result, { teacher, subject }) => {
+    if (!teacher || !subject) return result
+
+    result[teacher] = result[teacher] ?? []
+    result[teacher].push(subject)
+
+    return result
+  }, {})
+
+  Object.entries(teacherSubjects).forEach(([teacher, subjects]) => {
+    templateQuestions.forEach((templateQuestion) => {
+      const needsTeacher = usesTeacherTag(templateQuestion)
+      const needsSubject = usesSubjectTag(templateQuestion)
+
+      if (!needsSubject) {
+        addQuestion(
+          templateQuestion,
+          { teacher: needsTeacher ? teacher : '', subject: '', group, allowedTags },
+          `${question.id}-${teacher}-${templateQuestion.id}`,
+        )
         return
       }
 
-      const teacherSubjects = pairs.reduce((result, { teacher, subject }) => {
-        if (!teacher || !subject) return result
-        result[teacher] = result[teacher] ?? []
-        result[teacher].push(subject)
-        return result
-      }, {})
-
-      Object.entries(teacherSubjects).forEach(([teacher, subjects]) => {
-        templateQuestions.forEach((templateQuestion) => {
-          const needsTeacher = usesTeacherTag(templateQuestion)
-          const needsSubject = usesSubjectTag(templateQuestion)
-
-          if (!needsSubject) {
-            addQuestion(
-              templateQuestion,
-              { teacher: needsTeacher ? teacher : '', subject: '', group, allowedTags },
-              `${question.id}-${teacher}-${templateQuestion.id}`,
-            )
-            return
-          }
-
-          subjects.forEach((subject) => {
-            addQuestion(
-              templateQuestion,
-              { teacher: needsTeacher ? teacher : '', subject, group, allowedTags },
-              `${question.id}-${teacher}-${subject}-${templateQuestion.id}`,
-            )
-          })
-        })
+      subjects.forEach((subject) => {
+        addQuestion(
+          templateQuestion,
+          { teacher: needsTeacher ? teacher : '', subject, group, allowedTags },
+          `${question.id}-${teacher}-${subject}-${templateQuestion.id}`,
+        )
       })
-      return
-    }
+    })
+  })
+
+  return
+}
 
     if (mode === 'subject') {
       Object.entries(subjectTeachers).forEach(([subject, teachers]) => {

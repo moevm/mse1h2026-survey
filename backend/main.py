@@ -1,7 +1,12 @@
 from fastapi import FastAPI, status, Body, Depends, HTTPException, Response
 import json
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from utils.export_pdf import PDFExporter
+from utils.export_excel import ExcelExporter
+from utils.report_factory import build_report_visualizer
+import io
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 from sqlalchemy import text, delete
 from database import engine, get_db, Base
@@ -659,6 +664,83 @@ def get_all_answers(id:str, db:Session = Depends(get_db), current_admin: User = 
         "count": answers_count,
         "answers_list": answers_list
     }
+
+@app.get("/survey/{id}/export/pdf")
+def export_survey_pdf(
+    id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(admin_access)
+):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    answers = db.query(Answer).filter(Answer.survey_id == id).all()
+
+    try:
+        visualizer = build_report_visualizer(survey, answers, db)
+        exporter = PDFExporter(visualizer)
+        report_bytes = exporter.export_survey_to_pdf(str(survey.id))
+    except Exception as error:
+        raise HTTPException(
+            detail=f"Failed to generate PDF report: {error}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    filename = f"{survey.title}-statistics.pdf"
+
+    return StreamingResponse(
+        io.BytesIO(report_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename*=UTF-8''{quote(filename)}"
+            )
+        }
+    )
+
+
+@app.get("/survey/{id}/export/excel")
+def export_survey_excel(
+    id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(admin_access)
+):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    answers = db.query(Answer).filter(Answer.survey_id == id).all()
+
+    try:
+        visualizer = build_report_visualizer(survey, answers, db)
+        exporter = ExcelExporter(visualizer)
+        report_bytes = exporter.export_survey_to_excel(str(survey.id))
+    except Exception as error:
+        raise HTTPException(
+            detail=f"Failed to generate Excel report: {error}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    filename = f"{survey.title}-statistics.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(report_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename*=UTF-8''{quote(filename)}"
+            )
+        }
+    )
 
 @app.get("/answers/{id}", response_model=AnswerResponse)
 def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depends(admin_access)):

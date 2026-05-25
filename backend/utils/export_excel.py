@@ -9,6 +9,10 @@ import io
 from utils.visualization_functions import Survey, SurveyVisualizer, normalize_question_type, get_question_id, get_question_text, get_question_options
 
 
+def _question_label(question: Dict, index: int) -> str:
+    return question.get("report_label") or f"Question {index}"
+
+
 def _excel_value(value):
     if value is None:
         return ""
@@ -32,8 +36,8 @@ class ExcelExporter:
         self._create_info_sheet(wb, survey)
         self._create_raw_data_sheet(wb, survey_id, survey)
 
-        for question in survey.questions:
-            self._create_question_stats_sheet(wb, survey_id, question)
+        for idx, question in enumerate(survey.questions, start=1):
+            self._create_question_stats_sheet(wb, survey_id, question, idx)
 
         if filename:
             wb.save(filename)
@@ -123,15 +127,16 @@ class ExcelExporter:
                     pass
             ws.column_dimensions[col_letter].width = max_length + 2
 
-    def _create_question_stats_sheet(self, wb: Workbook, survey_id: int, question: Dict):
+    def _create_question_stats_sheet(self, wb: Workbook, survey_id: int, question: Dict, index: int):
         question_id = get_question_id(question)
         question_text = get_question_text(question)
         question_type = normalize_question_type(question.get('type', 'text'))
+        question_label = _question_label(question, index)
 
-        sheet_name = f"Q{question_id}"
+        sheet_name = f"Q{index}"
         ws = wb.create_sheet(sheet_name)
 
-        ws['A1'] = f"Question {question_id}: {question_text}"
+        ws['A1'] = f"{question_label}: {question_text}"
         ws['A1'].font = Font(size=12, bold=True)
         ws.merge_cells('A1:F1')
 

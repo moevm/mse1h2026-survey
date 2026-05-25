@@ -381,7 +381,6 @@ def get_me(current_user: User = Depends(auth.get_current_user_required)):
 
 @app.get("/group_data/{group}")
 def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session = Depends(get_db), access: None = Depends(public_access)):
-def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session = Depends(get_db)):
     if not survey_id:
         raise HTTPException(
             detail="survey_id is required",
@@ -453,14 +452,14 @@ def import_survey_from_sheets(id: UUID, db: Session = Depends(get_db), current_a
 
 
 @app.post("/sheets_columns")
-def get_sheets_columns(data: SetGoogleSheetsLink, current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_sheets_columns(data: SetGoogleSheetsLink, current_admin: User = Depends(admin_access)):
     return {
         "columns": get_sheet_columns(data.url)
     }
 
     
 @app.get("/survey", response_model=SurveyList)
-def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db), current_admin: User = Depends(admin_access)):
     survey_list = db.query(Survey).offset((page - 1) * size).limit(size).all()
     survey_count = db.query(Survey).count()
     if not survey_list:
@@ -475,7 +474,7 @@ def get_all(size:int = 5, page:int = 1, db:Session = Depends(get_db), current_ad
     }
 
 @app.get("/survey/group/{group}", response_model=SurveyList)
-def get_survey_by_group(group:str, db:Session= Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_survey_by_group(group:str, db:Session= Depends(get_db), current_admin: User = Depends(admin_access)):
     surveys= db.query(Survey).filter(Survey.groups.any(group)).all()
     if not surveys:
         raise HTTPException(
@@ -493,7 +492,7 @@ def get_public_survey(id:str, db:Session = Depends(get_db)):
 
 
 @app.get("/survey/{id}", response_model=SurveyResponse)
-def get_survey(id:str, db:Session = Depends(get_db), current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+def get_survey(id:str, db:Session = Depends(get_db), current_admin: User = Depends(admin_access)):
     """Находит опрос по ID"""
     survey = db.query(Survey).filter(Survey.id == id).first()
     if not survey:
@@ -653,7 +652,6 @@ def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depen
 
 @app.post("/answers", response_model=AnswerResponse)
 def post_answer(data:AnswerCreate, db:Session = Depends(get_db), access: None = Depends(public_access)):
-def post_answer(data:AnswerCreate, db:Session = Depends(get_db)):
     survey = get_active_public_survey(str(data.survey_id), db)
     if data.group not in survey.groups:
         raise HTTPException(

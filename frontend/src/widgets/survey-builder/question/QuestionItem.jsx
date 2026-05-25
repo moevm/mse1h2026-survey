@@ -4,6 +4,7 @@ import { Card } from '@shared/ui/card'
 import { Toggle } from '@shared/ui/toggle'
 import { Toolbar } from '@shared/ui/toolbar'
 import { Editor } from './Editor'
+import { FiArrowDown, FiArrowUp } from 'react-icons/fi'
 import { MdDragIndicator } from 'react-icons/md'
 import styles from '../SurveyBuilder.module.css'
 
@@ -30,6 +31,10 @@ export const QuestionItem = ({
   blueprintTags,
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   dragHandleProps,
 }) => {
   const isBlueprint = question.type === 'blueprint'
@@ -62,6 +67,26 @@ export const QuestionItem = ({
             ? `Шаблонная группа`
             : `Вопрос №${number}`}
         </span>
+        <div className={styles.orderControls}>
+          <button
+            type="button"
+            className={styles.orderBtn}
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            title="Переместить выше"
+          >
+            <FiArrowUp size={16} />
+          </button>
+          <button
+            type="button"
+            className={styles.orderBtn}
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            title="Переместить ниже"
+          >
+            <FiArrowDown size={16} />
+          </button>
+        </div>
       </div>
 
       <div className={styles.row}>

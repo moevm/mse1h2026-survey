@@ -12,6 +12,11 @@
   color: #000;
 }
 
+.requiredMark {
+  margin-left: 4px;
+  color: #bd3739;
+}
+
 .stepsBlock {
   margin-top: 30px;
   font-size: 18px;

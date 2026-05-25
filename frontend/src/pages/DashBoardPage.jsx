@@ -135,32 +135,135 @@ export const DashBoardPage = () => {
     }
   }
 
-  const getMockExportStats = (survey, stats) => {
-    const answerCount = stats.count ?? stats.answers_list?.length ?? 0
-    const questionCount = survey.questions?.length ?? 0
+  const getAnswerValues = (answer) => (
+    Array.isArray(answer?.answer)
+      ? answer.answer.filter((item) => String(item ?? '').trim())
+      : []
+  )
 
-    return [
+  const flattenQuestions = (questions = []) => (
+    questions.flatMap((question) => (
+      question.type === 'blueprint' && Array.isArray(question.options)
+        ? flattenQuestions(question.options)
+        : [question]
+    ))
+  )
+
+  const buildExportStats = (survey, stats) => {
+    const answers = stats.answers_list ?? []
+    const questions = flattenQuestions(survey.questions ?? [])
+    const questionById = new Map(questions.map((question) => [String(question.id), question]))
+    const resolveQuestionStat = (rawQuestionId) => {
+      const questionId = String(rawQuestionId)
+      const exactQuestion = questionById.get(questionId)
+      if (exactQuestion) {
+        return { key: questionId, question: exactQuestion, isExpanded: false }
+      }
+
+      const templateQuestion = questions.find((candidate) => questionId.endsWith(`-${candidate.id}`))
+      if (templateQuestion) {
+        return {
+          key: String(templateQuestion.id),
+          question: templateQuestion,
+          isExpanded: true,
+          expandedId: questionId,
+        }
+      }
+
+      return { key: questionId, question: null, isExpanded: false }
+    }
+    const groupCounts = {}
+    const questionStats = {}
+
+    answers.forEach((answer) => {
+      const group = answer.group || 'Без группы'
+      const answeredQuestionKeys = new Set()
+      groupCounts[group] = (groupCounts[group] ?? 0) + 1
+
+      ;(answer.answers ?? []).forEach((item) => {
+        const questionRef = resolveQuestionStat(item.id_question)
+        const values = getAnswerValues(item)
+        questionStats[questionRef.key] = questionStats[questionRef.key] ?? {
+          questionId: questionRef.key,
+          question: questionRef.question,
+          total: 0,
+          choices: {},
+          numeric: [],
+          expandedIds: new Set(),
+        }
+
+        if (questionRef.isExpanded && questionRef.expandedId) {
+          questionStats[questionRef.key].expandedIds.add(questionRef.expandedId)
+        }
+
+        if (!values.length) return
+
+        answeredQuestionKeys.add(questionRef.key)
+        values.forEach((value) => {
+          questionStats[questionRef.key].choices[value] = (questionStats[questionRef.key].choices[value] ?? 0) + 1
+          const numericValue = Number(value)
+          if (Number.isFinite(numericValue)) {
+            questionStats[questionRef.key].numeric.push(numericValue)
+          }
+        })
+      })
+
+      answeredQuestionKeys.forEach((questionKey) => {
+        questionStats[questionKey].total += 1
+      })
+    })
+
+    const topGroup = Object.entries(groupCounts).sort((a, b) => b[1] - a[1])[0]
+    const answeredSlots = Object.values(questionStats).reduce((sum, item) => sum + item.total, 0)
+    const expectedSlots = answers.length * questions.length
+    const completion = expectedSlots ? Math.round((answeredSlots / expectedSlots) * 100) : 0
+
+    const summaryRows = [
       {
         metric: 'Количество ответов',
-        value: answerCount,
-        comment: 'Берется из текущей ручки ответов',
+        value: answers.length,
+        comment: 'Всего отправленных анкет',
       },
       {
         metric: 'Количество вопросов',
-        value: questionCount,
-        comment: 'Берется из карточки опроса',
+        value: questions.length,
+        comment: 'С учетом вопросов внутри шаблонных групп',
       },
       {
-        metric: 'Средняя заполненность',
-        value: '86%',
-        comment: 'Мок до готовности backend статистики',
+        metric: 'Заполненность',
+        value: `${completion}%`,
+        comment: `${answeredSlots} заполненных ответов из ${expectedSlots}`,
       },
       {
         metric: 'Самая активная группа',
-        value: '3341',
-        comment: 'Мок до готовности backend статистики',
+        value: topGroup ? `${topGroup[0]} (${topGroup[1]})` : 'Нет данных',
+        comment: 'По числу отправленных анкет',
       },
     ]
+
+    const questionRows = Object.values(questionStats).map((item) => {
+      const question = item.question ?? questionById.get(item.questionId)
+      const topChoice = Object.entries(item.choices).sort((a, b) => b[1] - a[1])[0]
+      const average = item.numeric.length
+        ? (item.numeric.reduce((sum, value) => sum + value, 0) / item.numeric.length).toFixed(2)
+        : null
+      const baseComment = average
+        ? `Среднее: ${average}`
+        : topChoice
+          ? `Частый ответ: ${topChoice[0]} (${topChoice[1]})`
+          : 'Нет данных'
+      const expandedComment = item.expandedIds.size
+        ? `; сгруппировано вариантов: ${item.expandedIds.size}`
+        : ''
+
+      return {
+        metric: String(question?.title ?? item.questionId),
+        value: item.total,
+        comment: `${baseComment}${expandedComment}`,
+      }
+    })
+
+    return [...summaryRows, ...questionRows]
   }
 
   const buildStatsTable = (survey, stats, fileStats) => {
@@ -198,7 +301,7 @@ export const DashBoardPage = () => {
     if (!targetSurvey) return
 
     const stats = await getSurveyStats(id)
-    const fileStats = getMockExportStats(targetSurvey, stats)
+    const fileStats = buildExportStats(targetSurvey, stats)
     const table = buildStatsTable(targetSurvey, stats, fileStats)
     const safeTitle = String(targetSurvey.title ?? 'survey').replace(/[\\/:*?"<>|]/g, '_')
 
@@ -241,9 +344,9 @@ export const DashBoardPage = () => {
       await request('PUT', `/survey/${id}`, {
         is_active: !targetSurvey.is_active
       })
-      setSurveys((prevSurveys) => 
-        prevSurveys.map((survey) => 
-          survey.id === id 
+      setSurveys((prevSurveys) =>
+        prevSurveys.map((survey) =>
+          survey.id === id
             ? { ...survey, is_active: !survey.is_active }
             : survey
           )
@@ -271,7 +374,7 @@ export const DashBoardPage = () => {
     </Header>
     <Main>
       <Container>
-        <SurveyDashboard 
+        <SurveyDashboard
           surveys={surveys}
           onCreate={handleCreate}
           onDelete={handleRemove}

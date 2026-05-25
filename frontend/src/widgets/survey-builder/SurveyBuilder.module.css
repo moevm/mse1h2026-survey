@@ -324,6 +324,42 @@
   gap: 6px;
 }
 
+.toolbarActions,
+.orderControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.orderControls {
+  margin-left: auto;
+}
+
+.orderBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #111827;
+  background-color: #fff;
+  border: 1px solid #d9e1ef;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.orderBtn:disabled {
+  color: #b6becd;
+  background-color: #f8fafc;
+  cursor: default;
+}
+
+.orderBtn:not(:disabled):hover {
+  background-color: #eef4ff;
+  border-color: #c9d8f6;
+}
+
 .blueprintCardNumber {
   font-size: 14px;
   font-weight: 600;

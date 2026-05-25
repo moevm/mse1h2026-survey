@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 import uuid
-from utils.parser import parse_and_populate
+from utils.parser import parse_and_populate, get_sheet_columns
 
 DEFAULT_SCHEDULE_RECORDS = [
     {"teacher": "Иванов Сергей Петрович", "discipline": "Алгоритмы и структуры данных", "groups": ["3341"]},
@@ -449,6 +449,13 @@ def import_survey_from_sheets(id: UUID, db: Session = Depends(get_db), current_a
     
     stats = parse_and_populate(url=survey.google_sheets_link, session=db, survey_id=id)
     return stats
+
+
+@app.post("/sheets_columns")
+def get_sheets_columns(data: SetGoogleSheetsLink, current_admin: User = Depends(RoleChecker([UserRole.ADMIN]))):
+    return {
+        "columns": get_sheet_columns(data.url)
+    }
 
     
 @app.get("/survey", response_model=SurveyList)

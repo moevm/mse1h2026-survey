@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiArrowLeftLongLine } from 'react-icons/ri'
 import { Input } from '@shared/ui/input'
@@ -172,10 +172,40 @@ export const SurveyBuilder = ({ initialData }) => {
     setSurvey((prev) => ({
       ...prev,
       blueprintLink,
+      blueprintRows: defaultBlueprintRows,
       selectedBlueprintRows: [],
       questions: prev.questions.filter((question) => question.type !== 'blueprint'),
     }))
   }
+
+  useEffect(() => {
+    const link = survey.blueprintLink.trim()
+    if (!link) return
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await request('POST', '/sheets_columns', {
+          url: link,
+          delete_old_data: false,
+        })
+        const columns = response.columns ?? []
+        if (!columns.length) return
+
+        setSurvey((prev) => {
+          const allowedTags = new Set(columns.map((row) => row.value))
+          return {
+            ...prev,
+            blueprintRows: columns,
+            selectedBlueprintRows: prev.selectedBlueprintRows.filter((tag) => allowedTags.has(tag)),
+          }
+        })
+      } catch (err) {
+        console.error(err)
+      }
+    }, 600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [survey.blueprintLink])
 
   const toggleBlueprintRow = (value, checked) => {
     setSurvey((prev) => ({

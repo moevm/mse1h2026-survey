@@ -1,7 +1,12 @@
 from fastapi import FastAPI, status, Body, Depends, HTTPException, Response
 import json
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from utils.export_pdf import PDFExporter
+from utils.export_excel import ExcelExporter
+from utils.report_factory import build_report_visualizer
+import io
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 from sqlalchemy import text, delete
 from database import engine, get_db, Base
@@ -21,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import shutil
 import uuid
-from utils.parser import parse_and_populate, get_sheet_columns
+from utils.parser import parse_and_populate, get_sheet_columns, get_sheet_groups, get_sheet_tags_for_group
 
 DEFAULT_SCHEDULE_RECORDS = [
     {"teacher": "Иванов Сергей Петрович", "discipline": "Алгоритмы и структуры данных", "groups": ["3341"]},
@@ -390,35 +395,60 @@ def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session 
             status_code=status.HTTP_404_NOT_FOUND
         )
 
-    query = (
-        db.query(
-            Group.name.label("group"),
-            Teacher.name.label("teacher"),
-            Discipline.name.label("discipline"),
+    def build_query():
+        return (
+            db.query(
+                Group.name.label("group"),
+                Teacher.name.label("teacher"),
+                Discipline.name.label("discipline"),
+            )
+            .join(GroupTeacherDiscipline, GroupTeacherDiscipline.group_id == Group.id)
+            .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
+            .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
+            .filter(Group.name == group)
         )
-        .join(GroupTeacherDiscipline, GroupTeacherDiscipline.group_id == Group.id)
-        .join(Teacher, Teacher.id == GroupTeacherDiscipline.teacher_id)
-        .join(Discipline, Discipline.id == GroupTeacherDiscipline.discipline_id)
-        .filter(Group.name == group)
-    )
 
-    query = query.filter(GroupTeacherDiscipline.survey_id == survey_id)
+    def ordered(query):
+        return query.order_by(
+            GroupTeacherDiscipline.source_order,
+            Teacher.name,
+            Discipline.name,
+        ).all()
 
-    rows = query.order_by(Teacher.name, Discipline.name).all()
+    query = build_query().filter(GroupTeacherDiscipline.survey_id == survey_id)
+    rows = ordered(query)
+
+    if not rows and survey.google_sheets_link:
+        parse_and_populate(survey.google_sheets_link, db, str(survey.id))
+        rows = ordered(query)
 
     if not rows:
-        raise HTTPException(
-            detail="No data found for this group",
-            status_code=404
-        )
+        if survey.google_sheets_link:
+            raise HTTPException(
+                detail="No data found for this group",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        rows = ordered(build_query().filter(GroupTeacherDiscipline.survey_id.is_(None)))
 
     teachers_dict = defaultdict(list)
+    assignments = []
     for r in rows:
         teachers_dict[r.teacher].append(r.discipline)
-    
-    return {
-        "teachers": teachers_dict
+        assignments.append({
+            "teacher": r.teacher,
+            "subject": r.discipline,
+        })
+
+    response = {
+        "teachers": teachers_dict,
     }
+
+    if survey.google_sheets_link:
+        response["assignments"] = assignments
+        response["allowed_tags"] = get_sheet_tags_for_group(survey.google_sheets_link, group)
+
+    return response
 
 @app.post("/survey/{id}/set_sheets_link")
 def set_survey_sheets_link(id: UUID, data: SetGoogleSheetsLink, db: Session = Depends(get_db), current_admin: User = Depends(admin_access)):
@@ -451,6 +481,13 @@ def import_survey_from_sheets(id: UUID, db: Session = Depends(get_db), current_a
 def get_sheets_columns(data: SetGoogleSheetsLink, current_admin: User = Depends(admin_access)):
     return {
         "columns": get_sheet_columns(data.url)
+    }
+
+
+@app.post("/sheets_groups")
+def get_sheets_groups(data: SetGoogleSheetsLink, current_admin: User = Depends(admin_access)):
+    return {
+        "groups": get_sheet_groups(data.url)
     }
 
     
@@ -623,16 +660,87 @@ def get_all_answers(id:str, db:Session = Depends(get_db), current_admin: User = 
     answers_list = db.query(Answer).filter(Answer.survey_id == id).all()
     answers_count = db.query(Answer).filter(Answer.survey_id == id).count()
 
-    if not answers_list:
-        raise HTTPException(
-            detail="Not found any answers to this survey",
-            status_code=status.HTTP_404_NOT_FOUND
-        )
-    
     return {
         "count": answers_count,
         "answers_list": answers_list
     }
+
+@app.get("/survey/{id}/export/pdf")
+def export_survey_pdf(
+    id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(admin_access)
+):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    answers = db.query(Answer).filter(Answer.survey_id == id).all()
+
+    try:
+        visualizer = build_report_visualizer(survey, answers, db)
+        exporter = PDFExporter(visualizer)
+        report_bytes = exporter.export_survey_to_pdf(str(survey.id))
+    except Exception as error:
+        raise HTTPException(
+            detail=f"Failed to generate PDF report: {error}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    filename = f"{survey.title}-statistics.pdf"
+
+    return StreamingResponse(
+        io.BytesIO(report_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename*=UTF-8''{quote(filename)}"
+            )
+        }
+    )
+
+
+@app.get("/survey/{id}/export/excel")
+def export_survey_excel(
+    id: str,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(admin_access)
+):
+    survey = db.query(Survey).filter(Survey.id == id).first()
+
+    if not survey:
+        raise HTTPException(
+            detail="Not found survey with this ID",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    answers = db.query(Answer).filter(Answer.survey_id == id).all()
+
+    try:
+        visualizer = build_report_visualizer(survey, answers, db)
+        exporter = ExcelExporter(visualizer)
+        report_bytes = exporter.export_survey_to_excel(str(survey.id))
+    except Exception as error:
+        raise HTTPException(
+            detail=f"Failed to generate Excel report: {error}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    filename = f"{survey.title}-statistics.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(report_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename*=UTF-8''{quote(filename)}"
+            )
+        }
+    )
 
 @app.get("/answers/{id}", response_model=AnswerResponse)
 def get_answer(id:str, db:Session = Depends(get_db), current_admin: User = Depends(admin_access)):

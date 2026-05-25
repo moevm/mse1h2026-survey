@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiArrowLeftLongLine } from 'react-icons/ri'
 import { Input } from '@shared/ui/input'
@@ -16,6 +16,45 @@ const defaultBlueprintRows = [
   { option: 'Группа', value: '{{group}}' },
   { option: 'Предмет', value: '{{subject}}' },
 ]
+
+const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const collectQuestionTagValues = (questions = []) => {
+  const tags = new Set()
+
+  const visit = (question) => {
+    const values = [
+      question.title,
+      ...(question.answers ?? []).map(getOptionValue),
+      ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
+    ]
+
+    values.forEach((value) => {
+      String(value ?? '').match(TEMPLATE_TAG_RE)?.forEach((tag) => tags.add(tag))
+    })
+
+    if (question.type === 'blueprint' && Array.isArray(question.options)) {
+      question.options.forEach(visit)
+    }
+  }
+
+  questions.forEach(visit)
+  return [...tags]
+}
+
+const normalizeSurveyForCompare = (survey) => JSON.stringify({
+  title: survey.title,
+  description: survey.description,
+  blueprintLink: survey.blueprintLink,
+  selectedBlueprintRows: survey.selectedBlueprintRows,
+  isActive: survey.isActive,
+  questions: survey.questions,
+  groups: survey.groups,
+})
 
 const BUILDER_DRAFT_PREFIX = 'survey-builder-draft'
 
@@ -88,8 +127,16 @@ const BlueprintSettings = ({
   blueprintLink,
   blueprintRows,
   selectedBlueprintRows,
+  availableGroups,
+  groups,
   onBlueprintLinkChange,
   onToggleBlueprintRow,
+  onSelectAllBlueprintRows,
+  onClearBlueprintRows,
+  onToggleGroup,
+  onSelectAllGroups,
+  onClearGroups,
+  onManualGroupsChange,
 }) => (
   <Card className={styles.card}>
     <div className={styles.fieldGroup}>
@@ -104,7 +151,13 @@ const BlueprintSettings = ({
     </div>
     {blueprintLink.trim() && (
       <div className={styles.fieldGroup}>
-        <span className={styles.label}>Шаблонные теги</span>
+        <div className={styles.listHeader}>
+          <span className={styles.label}>Шаблонные теги</span>
+          <div className={styles.listActions}>
+            <button type="button" onClick={onSelectAllBlueprintRows}>Выбрать все</button>
+            <button type="button" onClick={onClearBlueprintRows}>Снять все</button>
+          </div>
+        </div>
         <div className={styles.blueprintRows}>
           {blueprintRows.map((row) => (
             <label key={row.value} className={styles.blueprintRowOption}>
@@ -120,6 +173,48 @@ const BlueprintSettings = ({
         </div>
       </div>
     )}
+    <div className={styles.fieldGroup}>
+      <div className={styles.listHeader}>
+        <span className={styles.label}>Группы, которым доступен опрос</span>
+        {availableGroups.length > 0 && (
+          <div className={styles.listActions}>
+            <button type="button" onClick={onSelectAllGroups}>Выбрать все</button>
+            <button type="button" onClick={onClearGroups}>Снять все</button>
+          </div>
+        )}
+      </div>
+      {availableGroups.length > 0 ? (
+        <>
+          <div className={styles.blueprintRows}>
+            {availableGroups.map((group) => (
+              <label key={group} className={styles.blueprintRowOption}>
+                <input
+                  type="checkbox"
+                  checked={groups.includes(group)}
+                  onChange={(e) => onToggleGroup(group, e.target.checked)}
+                />
+                <span>{group}</span>
+              </label>
+            ))}
+          </div>
+          <span className={styles.fieldHint}>
+            Группы автоматически подтягиваются из таблицы. Если они не найдены, укажите номера через запятую.
+          </span>
+        </>
+      ) : (
+        <>
+          <Input
+            value={groups.join(', ')}
+            onChange={(e) => onManualGroupsChange(e.target.value)}
+            placeholder="3341, 3342"
+            className={styles.field}
+          />
+          <span className={styles.fieldHint}>
+            Укажите номера групп через запятую. Студенты из других групп увидят страницу без доступа.
+          </span>
+        </>
+      )}
+    </div>
   </Card>
 )
 
@@ -158,7 +253,7 @@ const getInitialSurvey = (initialData) => {
     description: source.description || '',
     blueprintLink: source.google_sheets_link || source.blueprint_link || source.blueprintLink || '',
     blueprintRows: source.blueprint_rows || source.blueprintRows || defaultBlueprintRows,
-    selectedBlueprintRows: source.selected_blueprint_rows || source.selectedBlueprintRows || [],
+    selectedBlueprintRows: source.selected_blueprint_rows || source.selectedBlueprintRows || collectQuestionTagValues(source.questions || []),
     isActive: source.is_active ?? source.isActive ?? false,
     questions: (source.questions || []).map(normalizeQuestionForBuilder),
     groups: source.groups || ['3341'],
@@ -166,12 +261,6 @@ const getInitialSurvey = (initialData) => {
 }
 
 const getQuestionOptions = (question) => question.options ?? question.answers ?? []
-
-const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
-
-const getOptionValue = (option) => (
-  typeof option === 'object' && option !== null ? option.value : option
-)
 
 const getBlueprintQuestionTagCount = (question) => {
   const values = [
@@ -213,6 +302,9 @@ const isInvalidQuestion = (question) => {
 export const SurveyBuilder = ({ initialData }) => {
   const navigate = useNavigate()
   const [survey, setSurvey] = useState(() => getInitialSurvey(initialData))
+  const [availableGroups, setAvailableGroups] = useState([])
+  const [savedSnapshot, setSavedSnapshot] = useState(() => normalizeSurveyForCompare(getInitialSurvey(initialData)))
+  const hasHistoryGuardRef = useRef(false)
 
   const isEditMode = Boolean(initialData?.id)
   const draftId = initialData?.id
@@ -226,12 +318,52 @@ export const SurveyBuilder = ({ initialData }) => {
     !survey.description.trim() ||
     survey.questions.length === 0 ||
     hasInvalidQuestions
+  const hasUnsavedChanges = normalizeSurveyForCompare(survey) !== savedSnapshot
 
   const updateMeta = (data) => setSurvey((prev) => ({ ...prev, ...data }))
 
   useEffect(() => {
     saveBuilderDraft(draftId, survey)
   }, [draftId, survey])
+
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (!hasUnsavedChanges) return
+
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    if (hasUnsavedChanges && !hasHistoryGuardRef.current) {
+      window.history.pushState({ surveyBuilderGuard: true }, '', window.location.href)
+      hasHistoryGuardRef.current = true
+    }
+
+    const handlePopState = () => {
+      if (!hasUnsavedChanges) return
+
+      const ok = window.confirm('Вы уверены, что хотите покинуть страницу? Несохраненные изменения будут удалены.')
+      if (!ok) {
+        window.history.pushState({ surveyBuilderGuard: true }, '', window.location.href)
+        return
+      }
+
+      clearBuilderDraft(draftId)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [draftId, hasUnsavedChanges])
+
+  const confirmLeaveWithUnsavedChanges = () => (
+    !hasUnsavedChanges ||
+    window.confirm('Вы уверены, что хотите покинуть страницу? Несохраненные изменения будут удалены.')
+  )
 
   const handleBlueprintLinkChange = (blueprintLink) => {
     setSurvey((prev) => ({
@@ -258,12 +390,42 @@ export const SurveyBuilder = ({ initialData }) => {
 
         setSurvey((prev) => {
           const allowedTags = new Set(columns.map((row) => row.value))
+          const selectedBlueprintRows = prev.selectedBlueprintRows.length
+            ? prev.selectedBlueprintRows.filter((tag) => allowedTags.has(tag))
+            : collectQuestionTagValues(prev.questions).filter((tag) => allowedTags.has(tag))
           return {
             ...prev,
             blueprintRows: columns,
-            selectedBlueprintRows: prev.selectedBlueprintRows.filter((tag) => allowedTags.has(tag)),
+            selectedBlueprintRows,
           }
         })
+      } catch (err) {
+        console.error(err)
+      }
+    }, 600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [survey.blueprintLink])
+
+  useEffect(() => {
+    const link = survey.blueprintLink.trim()
+    if (!link) {
+      const timeoutId = window.setTimeout(() => setAvailableGroups([]), 0)
+      return () => window.clearTimeout(timeoutId)
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await request('POST', '/sheets_groups', {
+          url: link,
+          delete_old_data: false,
+        })
+        const groups = response.groups ?? []
+        setAvailableGroups(groups)
+        setSurvey((prev) => ({
+          ...prev,
+          groups: prev.groups.length ? prev.groups.filter((group) => groups.includes(group)) : groups,
+        }))
       } catch (err) {
         console.error(err)
       }
@@ -278,6 +440,22 @@ export const SurveyBuilder = ({ initialData }) => {
       selectedBlueprintRows: checked
         ? [...prev.selectedBlueprintRows, value]
         : prev.selectedBlueprintRows.filter((item) => item !== value),
+    }))
+  }
+
+  const toggleGroup = (group, checked) => {
+    setSurvey((prev) => ({
+      ...prev,
+      groups: checked
+        ? [...new Set([...prev.groups, group])]
+        : prev.groups.filter((item) => item !== group),
+    }))
+  }
+
+  const handleManualGroupsChange = (value) => {
+    setSurvey((prev) => ({
+      ...prev,
+      groups: value.split(',').map((item) => item.trim()).filter(Boolean),
     }))
   }
 
@@ -356,6 +534,7 @@ export const SurveyBuilder = ({ initialData }) => {
         await importBlueprintData(createdSurvey.id)
       }
       clearBuilderDraft(draftId)
+      setSavedSnapshot(normalizeSurveyForCompare(survey))
       navigate('/dashboard')
     } catch (err) {
       console.error('Save error:', err)
@@ -391,9 +570,29 @@ export const SurveyBuilder = ({ initialData }) => {
     }
   }
 
+  const handleCancelChanges = () => {
+    clearBuilderDraft(draftId)
+
+    if (isEditMode) {
+      const initialSurvey = getInitialSurvey(initialData)
+      setSurvey(initialSurvey)
+      setSavedSnapshot(normalizeSurveyForCompare(initialSurvey))
+      return
+    }
+
+    navigate('/dashboard')
+  }
+
+  const handleBack = () => {
+    if (!confirmLeaveWithUnsavedChanges()) return
+
+    clearBuilderDraft(draftId)
+    navigate('/dashboard')
+  }
+
   return (
     <div className={styles.wrapper}>
-      <button className={styles.backBtn} onClick={() => navigate(-1)}>
+      <button className={styles.backBtn} onClick={handleBack}>
         <RiArrowLeftLongLine size={24} />
         Назад к списку
       </button>
@@ -417,8 +616,16 @@ export const SurveyBuilder = ({ initialData }) => {
         blueprintLink={survey.blueprintLink}
         blueprintRows={survey.blueprintRows}
         selectedBlueprintRows={survey.selectedBlueprintRows}
+        availableGroups={availableGroups}
+        groups={survey.groups}
         onBlueprintLinkChange={handleBlueprintLinkChange}
         onToggleBlueprintRow={toggleBlueprintRow}
+        onSelectAllBlueprintRows={() => updateMeta({ selectedBlueprintRows: survey.blueprintRows.map((row) => row.value) })}
+        onClearBlueprintRows={() => updateMeta({ selectedBlueprintRows: [] })}
+        onToggleGroup={toggleGroup}
+        onSelectAllGroups={() => updateMeta({ groups: availableGroups })}
+        onClearGroups={() => updateMeta({ groups: [] })}
+        onManualGroupsChange={handleManualGroupsChange}
       />
       <Toolbar
         left={<span className={styles.pageTitle} style={{ fontSize: '20px' }}>Вопросы</span>}
@@ -439,18 +646,27 @@ export const SurveyBuilder = ({ initialData }) => {
         onRemoveQuestion={removeQuestion}
         onReorderQuestions={handleReorderQuestions}
       />
-      <Toolbar
-        left={
-          <Button className={styles.addBtn} onClick={handleSave} disabled={isSubmitDisabled}>
-            {isEditMode ? 'Сохранить изменения' : 'Создать опрос'}
-          </Button>
-        }
-        right={
-          <Button onClick={handleDelete} className={styles.removeBtn}>
-            {isEditMode ? 'Удалить опрос' : 'Отмена создания опроса'}
-          </Button>
-        }
-      />
+      <div className={styles.stickyActions}>
+        <Toolbar
+          left={
+            <Button className={styles.saveBtn} onClick={handleSave} disabled={isSubmitDisabled}>
+              {isEditMode ? 'Сохранить изменения' : 'Создать опрос'}
+            </Button>
+          }
+          right={
+            <div className={styles.formActions}>
+              <Button onClick={handleCancelChanges} className={styles.cancelBtn}>
+                {isEditMode ? 'Отменить изменения' : 'Отмена создания'}
+              </Button>
+              {isEditMode && (
+                <Button onClick={handleDelete} className={styles.removeBtn}>
+                  Удалить опрос
+                </Button>
+              )}
+            </div>
+          }
+        />
+      </div>
     </div>
   )
 }

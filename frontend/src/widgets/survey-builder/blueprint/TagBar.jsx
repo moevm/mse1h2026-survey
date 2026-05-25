@@ -31,6 +31,7 @@ export const TagBar = ({ inputRef, value, onChange, tags }) => {
           onClick={() => handleInsert(tag.value)}
         >
           + {tag.option}
+          <span className={styles.tagBtnValue}>{tag.value}</span>
         </button>
       ))}
     </div>

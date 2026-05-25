@@ -54,6 +54,15 @@ class SurveyResponse(BaseModel):
     google_sheets_link: Optional[str] = None
     is_active: bool = True
 
+"""Публичная схема опроса для прохождения"""
+class PublicSurveyResponse(BaseModel):
+    id: UUID
+    title: str
+    description: str
+    lifetime_seconds: Optional[int] = None
+    questions: list[dict]
+    photo_path: Optional[str] = None
+
 """Лист со всеми опросами"""
 class SurveyList(BaseModel):
     count: int

@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { FiTrash2 } from 'react-icons/fi'
+import { FiArrowDown, FiArrowUp, FiTrash2 } from 'react-icons/fi'
 import { MdDragIndicator } from 'react-icons/md'
 import { Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from '@shared/ui/input'
@@ -50,6 +50,10 @@ export const BlueprintQuestionItem = ({
   blueprintTags = [],
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   dragHandleProps,
 }) => {
   const titleRef = useRef(null)
@@ -195,9 +199,31 @@ export const BlueprintQuestionItem = ({
           />
         }
         right={
-          <button type="button" onClick={onRemove} className={styles.removeIconBtn} aria-label="Удалить вопрос">
-            <FiTrash2 size={18} />
-          </button>
+          <div className={styles.toolbarActions}>
+            <div className={styles.orderControls}>
+              <button
+                type="button"
+                className={styles.orderBtn}
+                onClick={onMoveUp}
+                disabled={!canMoveUp}
+                title="Переместить выше"
+              >
+                <FiArrowUp size={16} />
+              </button>
+              <button
+                type="button"
+                className={styles.orderBtn}
+                onClick={onMoveDown}
+                disabled={!canMoveDown}
+                title="Переместить ниже"
+              >
+                <FiArrowDown size={16} />
+              </button>
+            </div>
+            <button type="button" onClick={onRemove} className={styles.removeIconBtn} aria-label="Удалить вопрос">
+              <FiTrash2 size={18} />
+            </button>
+          </div>
         }
       />
     </Card>

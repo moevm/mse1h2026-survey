@@ -113,6 +113,22 @@ export const QuestionList = ({
                       blueprintTags={blueprintTags}
                       onUpdate={onUpdateQuestion}
                       onRemove={onRemoveQuestion}
+                      onMoveUp={() => {
+                        if (idx === 0) return
+                        const next = [...questions]
+                        const [moved] = next.splice(idx, 1)
+                        next.splice(idx - 1, 0, moved)
+                        onReorderQuestions(next)
+                      }}
+                      onMoveDown={() => {
+                        if (idx === questions.length - 1) return
+                        const next = [...questions]
+                        const [moved] = next.splice(idx, 1)
+                        next.splice(idx + 1, 0, moved)
+                        onReorderQuestions(next)
+                      }}
+                      canMoveUp={idx > 0}
+                      canMoveDown={idx < questions.length - 1}
                       dragHandleProps={dragProvided.dragHandleProps}
                     />
                   </div>

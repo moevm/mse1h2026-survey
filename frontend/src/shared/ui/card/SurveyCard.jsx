@@ -28,6 +28,7 @@ export const SurveyCard = ({
   onExport
 }) => {
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [isIdCopied, setIsIdCopied] = useState(false)
 
   const { 
     id, 
@@ -57,6 +58,22 @@ export const SurveyCard = ({
     }
   }
 
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(String(id))
+    } catch {
+      const input = document.createElement('input')
+      input.value = String(id)
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+
+    setIsIdCopied(true)
+    window.setTimeout(() => setIsIdCopied(false), 1600)
+  }
+
   const handleExport = (format) => {
     onExport(id, format)
     setIsExportOpen(false)
@@ -77,7 +94,14 @@ export const SurveyCard = ({
       <div className={styles.footer}>
         <div className={styles.stats}>
           <span className={styles.countLabel}>ID:</span>
-          <span className={styles.countValue}>{id}</span>
+          <button
+            type="button"
+            className={styles.idSpoiler}
+            onClick={handleCopyId}
+            title="Скопировать ID опроса"
+          >
+            {isIdCopied ? 'ID скопирован' : 'Скопировать ID'}
+          </button>
           <span className={styles.countDivider}>/</span>
           <span className={styles.countLabel}>Вопросов:</span>
           <span className={styles.countValue}>{questions?.length || 0}</span>

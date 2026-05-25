@@ -70,70 +70,9 @@ class User(Base):
         index=True,
         nullable=False
     )
-    hashed_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String)
     
     role: Mapped[UserRole] =  mapped_column(SQLAlchemyEnum(UserRole), default=UserRole.USER)
-
-    password_credentials: Mapped[List["UserPasswordCredential"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    ldap_identity: Mapped[Optional["UserLdapIdentity"]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        uselist=False,
-    )
-
-    @property
-    def auth_services(self) -> Dict[str, Any]:
-        services: Dict[str, Any] = {
-            "password": {
-                credential.algorithm: credential.password_hash
-                for credential in self.password_credentials
-            }
-        }
-
-        if self.ldap_identity:
-            services["ldap"] = {
-                "id": self.ldap_identity.external_id,
-                "idAttribute": self.ldap_identity.id_attribute,
-            }
-
-        return services
-
-
-class UserPasswordCredential(Base):
-    __tablename__ = "user_password_credentials"
-    __table_args__ = (
-        UniqueConstraint("user_id", "algorithm", name="uq_user_password_algorithm"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
-    password_hash: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-
-    user: Mapped["User"] = relationship(back_populates="password_credentials")
-
-
-class UserLdapIdentity(Base):
-    __tablename__ = "user_ldap_identities"
-    __table_args__ = (
-        UniqueConstraint("external_id", "id_attribute", name="uq_ldap_external_identity"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
-    )
-    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    id_attribute: Mapped[str] = mapped_column(String(100), nullable=False, default="uid")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
-
-    user: Mapped["User"] = relationship(back_populates="ldap_identity")
 
 
 class Group(Base):

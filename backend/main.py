@@ -179,11 +179,13 @@ async def lifespan(app: FastAPI):
         admin_user = db.query(User).filter(User.username == "admin").first()
 
         if not admin_user:
+            hashed_pwd = auth.get_password_hash("admin")
+
             new_admin = User(
                 username="admin",
+                hashed_password=hashed_pwd,
                 role=UserRole.ADMIN
             )
-            auth.set_password_credential(new_admin, "admin")
 
             db.add(new_admin)
             db.commit()
@@ -328,10 +330,12 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail='Пользователь с таким именем уже существует'
         )
 
+    hashed_pwd = auth.get_password_hash(user_data.password)
+
     new_user = User(
         username=user_data.username,
+        hashed_password=hashed_pwd
     )
-    auth.set_password_credential(new_user, user_data.password)
 
     db.add(new_user)
     db.commit()
@@ -344,7 +348,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.username == user_data.username).first()
 
-    if not existing_user or not auth.verify_user_password(existing_user, user_data.password):
+    if not existing_user or not auth.verify_password(user_data.password, existing_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Неверный логин или пароль'

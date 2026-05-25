@@ -6,6 +6,7 @@ import { Header } from '@widgets/header'
 import { Main } from '@widgets/main'
 import { Footer } from '@widgets/footer'
 import LogoIcon from '@shared/assets/icons/logo.svg?react'
+import styles from './NotFoundPage.module.css'
 
 export function NotFoundPage({ message = 'Такой страницы нет или ссылка больше не работает.' }) {
   const navigate = useNavigate()
@@ -17,24 +18,14 @@ export function NotFoundPage({ message = 'Такой страницы нет и�
           <LogoIcon />
         </Container>
       </Header>
-      <Main>
-        <Container>
-          <div style={{
-            minHeight: '60vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <Card style={{
-              width: '100%',
-              maxWidth: '520px',
-              padding: '40px',
-              textAlign: 'center',
-            }}>
-              <h1 style={{ margin: '0 0 12px', fontSize: '42px', lineHeight: 1 }}>
+      <Main className={styles.main}>
+        <Container className={styles.container}>
+          <div className={styles.content}>
+            <Card className={styles.card}>
+              <h1 className={styles.title}>
                 Страница не найдена
               </h1>
-              <p style={{ margin: '0 0 28px', color: '#666', fontSize: '16px' }}>
+              <p className={styles.message}>
                 {message}
               </p>
               <Button onClick={() => navigate('/login')}>

@@ -1,8 +1,8 @@
 import { QuestionOptionGroup } from '../group/QuestionOptionGroup';
 import { Button } from '@shared/ui/button';
 import { List, ItemList } from '@shared/ui/list';
-import clsx from 'clsx'
-import styles from './ScaleQuestion.module.css'
+import clsx from 'clsx';
+import styles from './ScaleQuestion.module.css';
 
 export const ScaleQuestion = ({
   title,
@@ -20,8 +20,9 @@ export const ScaleQuestion = ({
   className
 }) => {
   const items = [];
-  for (let i = min; i <= max; i+= step) {
-    items.push(i)
+
+  for (let i = min; i <= max; i += step) {
+    items.push(i);
   }
 
   return (
@@ -39,10 +40,12 @@ export const ScaleQuestion = ({
         {items.map((item) => {
           const buttonClass = clsx(styles.scaleButton, {
             [styles.scaleButtonSelected]: value === item
-          })
+          });
+
           return (
             <ItemList key={item} className={styles.scaleItem}>
               <Button
+                type="button"
                 className={buttonClass}
                 onClick={() => onChange(item)}
                 disabled={disabled}
@@ -50,9 +53,9 @@ export const ScaleQuestion = ({
                 {item}
               </Button>
             </ItemList>
-          )
+          );
         })}
       </List>
     </QuestionOptionGroup>
   );
-}
+};

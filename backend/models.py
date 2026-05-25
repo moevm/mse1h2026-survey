@@ -193,6 +193,7 @@ class GroupTeacherDiscipline(Base):
     discipline_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("disciplines.id", ondelete="CASCADE"), nullable=False
     )
+    source_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     survey: Mapped["Survey"] = relationship()
     group: Mapped["Group"] = relationship(back_populates="assignments")

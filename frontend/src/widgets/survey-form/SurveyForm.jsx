@@ -14,6 +14,8 @@ const isAnswerFilled = (value) => {
   return value !== undefined && String(value ?? '').trim() !== ''
 }
 
+const PASSING_QUESTION_TYPES = new Set(['radio', 'checkbox', 'scale', 'text'])
+
 export const SurveyForm = ({ 
   survey,
   answers,
@@ -36,10 +38,14 @@ export const SurveyForm = ({
     const searchParams = new URLSearchParams(window.location.search)
     const group = searchParams.get("group") || "";
 
+    const visibleQuestions = questions.filter((question) => (
+      PASSING_QUESTION_TYPES.has(question.type)
+    ))
+
     const payload = {
       survey_id: id,
       group,
-      answers: questions.filter((question) => isAnswerFilled(answers[question.id])).map((question) => {
+      answers: visibleQuestions.filter((question) => isAnswerFilled(answers[question.id])).map((question) => {
         const value = answers[question.id];
         return {
           id_question: question.id,
@@ -63,13 +69,13 @@ export const SurveyForm = ({
         title={title}
         description={description}
       />
-      {questions.map((question, idx) => {
+      {questions.filter((question) => PASSING_QUESTION_TYPES.has(question.type)).map((question, idx, visibleQuestions) => {
         return (
           <Question
             key={question.id}
             {...question} 
             currentStep={idx + 1}
-            totalSteps={questions.length}
+            totalSteps={visibleQuestions.length}
             value={answers[question.id]}
             onChange={(value) => onAnswerChange(question.id, value)}
           />

@@ -37,40 +37,6 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def set_password_credential(user: models.User, password: str, algorithm: str = "bcrypt"):
-    password_hash = get_password_hash(password)
-
-    for credential in user.password_credentials:
-        if credential.algorithm == algorithm:
-            credential.password_hash = password_hash
-            return credential
-
-    credential = models.UserPasswordCredential(
-        algorithm=algorithm,
-        password_hash=password_hash,
-    )
-    user.password_credentials.append(credential)
-    return credential
-
-
-def verify_user_password(user: models.User, plain_password: str) -> bool:
-    bcrypt_credential = next(
-        (
-            credential for credential in user.password_credentials
-            if credential.algorithm == "bcrypt"
-        ),
-        None,
-    )
-
-    if bcrypt_credential:
-        return verify_password(plain_password, bcrypt_credential.password_hash)
-
-    if user.hashed_password:
-        return verify_password(plain_password, user.hashed_password)
-
-    return False
-
-
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

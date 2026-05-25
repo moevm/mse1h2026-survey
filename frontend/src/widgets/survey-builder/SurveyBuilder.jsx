@@ -119,7 +119,7 @@ const normalizeQuestionForBuilder = (question) => {
 const getInitialSurvey = (initialData) => ({
   title: initialData?.title || '',
   description: initialData?.description || '',
-  blueprintLink: initialData?.blueprint_link || initialData?.blueprintLink || '',
+  blueprintLink: initialData?.google_sheets_link || initialData?.blueprint_link || initialData?.blueprintLink || '',
   blueprintRows: initialData?.blueprint_rows || initialData?.blueprintRows || defaultBlueprintRows,
   selectedBlueprintRows: initialData?.selected_blueprint_rows || initialData?.selectedBlueprintRows || [],
   isActive: initialData?.is_active ?? false,
@@ -220,24 +220,36 @@ export const SurveyBuilder = ({ initialData }) => {
     setSurvey((prev) => ({ ...prev, questions: nextQuestions }))
   }
 
+  const importBlueprintData = async (surveyId) => {
+    const link = survey.blueprintLink.trim()
+    if (!link || !surveyId) return
+
+    await request('POST', `/survey/${surveyId}/set_sheets_link`, {
+      url: link,
+      delete_old_data: true,
+    })
+    await request('POST', `/survey/${surveyId}/import_from_sheets`)
+  }
+
   const handleSave = async () => {
     try {
       if (isEditMode) {
         const payload = {
           title: survey.title.trim(),
           description: survey.description.trim(),
-          blueprint_link: survey.blueprintLink.trim(),
+          google_sheets_link: survey.blueprintLink.trim(),
           selected_blueprint_rows: survey.selectedBlueprintRows,
           is_active: survey.isActive,
           questions: survey.questions,
           groups: survey.groups,
         }
         await request('PUT', `/survey/${initialData.id}`, payload)
+        await importBlueprintData(initialData.id)
       } else {
         const formData = new FormData()
         formData.append('title', survey.title.trim())
         formData.append('description', survey.description.trim())
-        formData.append('blueprint_link', survey.blueprintLink.trim())
+        formData.append('google_sheets_link', survey.blueprintLink.trim())
         formData.append('selected_blueprint_rows', JSON.stringify(survey.selectedBlueprintRows))
         formData.append('is_active', survey.isActive ? 'true' : 'false')
         formData.append('questions', JSON.stringify(survey.questions))
@@ -245,7 +257,8 @@ export const SurveyBuilder = ({ initialData }) => {
         if (survey.lifetime_seconds) {
           formData.append('lifetime_seconds', survey.lifetime_seconds)
         }
-        await request('POST', '/survey', formData)
+        const createdSurvey = await request('POST', '/survey', formData)
+        await importBlueprintData(createdSurvey.id)
       }
       navigate('/dashboard')
     } catch (err) {

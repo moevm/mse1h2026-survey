@@ -10,6 +10,52 @@ import { SurveySquareSidebar } from '@widgets/survey-sidebar';
 import { request } from '@shared/api/axios';
 import styles from './SurveyPassingPage.module.css';
 
+const PASSING_DRAFT_PREFIX = 'survey-passing-draft'
+
+const getPassingDraftKey = (surveyId, group) => (
+  `${PASSING_DRAFT_PREFIX}:${surveyId}:${group || 'no-group'}`
+)
+
+const readPassingDraft = (surveyId, group) => {
+  try {
+    const rawDraft = window.localStorage.getItem(getPassingDraftKey(surveyId, group))
+    return rawDraft ? JSON.parse(rawDraft) : null
+  } catch (err) {
+    console.error(err)
+    return null
+  }
+}
+
+const savePassingDraft = (surveyId, group, answers) => {
+  try {
+    window.localStorage.setItem(getPassingDraftKey(surveyId, group), JSON.stringify({
+      answers,
+      updatedAt: Date.now(),
+    }))
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const clearPassingDraft = (surveyId, group) => {
+  try {
+    window.localStorage.removeItem(getPassingDraftKey(surveyId, group))
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const filterDraftAnswers = (draftAnswers, questions) => {
+  const questionIds = new Set(questions.map((question) => String(question.id)))
+
+  return Object.entries(draftAnswers ?? {}).reduce((result, [questionId, value]) => {
+    if (questionIds.has(String(questionId))) {
+      result[questionId] = value
+    }
+    return result
+  }, {})
+}
+
 const replaceBlueprintTags = (value, context) => (
   String(value ?? '')
     .replaceAll('{{teacher}}', context.teacher)
@@ -128,10 +174,13 @@ export const SurveyPassingPage = () => {
           }
         }
 
-        setSurvey({
+        const nextSurvey = {
           ...response,
-          questions: expandBlueprintQuestions(response.questions ?? [], scheduleData, group)
-        })
+          questions: expandBlueprintQuestions(response.questions ?? [], scheduleData, group),
+        }
+        const draftAnswers = readPassingDraft(uuid, group)?.answers
+        setAnswers(filterDraftAnswers(draftAnswers, nextSurvey.questions))
+        setSurvey(nextSurvey)
       } catch (err) {
         setError(err)
       } finally {
@@ -141,7 +190,13 @@ export const SurveyPassingPage = () => {
     loadSurvey();
   }, [uuid, group]);
 
+  useEffect(() => {
+    if (!survey) return
+    savePassingDraft(uuid, group, answers)
+  }, [uuid, group, survey, answers])
+
   const handleFinish = () => {
+    clearPassingDraft(uuid, group)
     navigate('../result')
   };
 

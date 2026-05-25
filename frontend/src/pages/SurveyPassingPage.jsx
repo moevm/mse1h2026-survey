@@ -10,6 +10,12 @@ import { SurveySquareSidebar } from '@widgets/survey-sidebar';
 import { request } from '@shared/api/axios';
 import styles from './SurveyPassingPage.module.css';
 
+const TEMPLATE_TAG_RE = /\{\{([^{}]+)\}\}/g
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
 const PASSING_DRAFT_PREFIX = 'survey-passing-draft'
 
 const getPassingDraftKey = (surveyId, group) => (
@@ -57,10 +63,9 @@ const filterDraftAnswers = (draftAnswers, questions) => {
 }
 
 const replaceBlueprintTags = (value, context) => (
-  String(value ?? '')
-    .replaceAll('{{teacher}}', context.teacher)
-    .replaceAll('{{group}}', context.group)
-    .replaceAll('{{subject}}', context.subject)
+  String(value ?? '').replace(TEMPLATE_TAG_RE, (match, tag) => (
+    context[tag] ?? match
+  ))
 )
 
 const normalizeQuestion = (question, context = null, fallbackId = question.id) => {
@@ -73,7 +78,7 @@ const normalizeQuestion = (question, context = null, fallbackId = question.id) =
 
   if (['radio', 'checkbox'].includes(question.type)) {
     normalized.answers = (question.answers ?? question.options ?? []).map(option => (
-      context ? replaceBlueprintTags(option, context) : option
+      context ? replaceBlueprintTags(getOptionValue(option), context) : getOptionValue(option)
     ))
   }
 
@@ -86,14 +91,41 @@ const normalizeQuestion = (question, context = null, fallbackId = question.id) =
   return normalized
 }
 
-const questionUsesSubject = (question) => {
+const getQuestionTag = (question) => {
   const values = [
     question.title,
-    ...(question.answers ?? []),
-    ...(Array.isArray(question.options) ? question.options : []),
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
   ]
 
-  return values.some(value => String(value ?? '').includes('{{subject}}'))
+  const tags = values
+    .flatMap(value => [...String(value ?? '').matchAll(TEMPLATE_TAG_RE)].map(match => match[1]))
+
+  return tags[0] ?? null
+}
+
+const getBlueprintMode = (templateQuestions) => {
+  for (const question of templateQuestions) {
+    const tag = getQuestionTag(question)
+    if (tag === 'teacher' || tag === 'subject') {
+      return tag
+    }
+  }
+
+  return 'teacher'
+}
+
+const getScheduleIndexes = (teachers = {}) => {
+  const subjectTeachers = {}
+
+  Object.entries(teachers).forEach(([teacher, subjects]) => {
+    subjects.forEach((subject) => {
+      subjectTeachers[subject] = subjectTeachers[subject] ?? []
+      subjectTeachers[subject].push(teacher)
+    })
+  })
+
+  return { subjectTeachers }
 }
 
 const expandBlueprintQuestions = (questions, scheduleData, group) => {
@@ -110,10 +142,40 @@ const expandBlueprintQuestions = (questions, scheduleData, group) => {
     }
 
     const templateQuestions = Array.isArray(question.options) ? question.options : []
+    const mode = getBlueprintMode(templateQuestions)
+    const { subjectTeachers } = getScheduleIndexes(scheduleData.teachers)
+
+    if (mode === 'subject') {
+      Object.entries(subjectTeachers).forEach(([subject, teachers]) => {
+        templateQuestions.forEach((templateQuestion) => {
+          const tag = getQuestionTag(templateQuestion)
+
+          if (tag === 'teacher') {
+            teachers.forEach((teacher) => {
+              expanded.push(normalizeQuestion(
+                templateQuestion,
+                { teacher, subject, group },
+                `${question.id}-${subject}-${teacher}-${templateQuestion.id}`,
+              ))
+            })
+            return
+          }
+
+          expanded.push(normalizeQuestion(
+            templateQuestion,
+            { teacher: '', subject, group },
+            `${question.id}-${subject}-${templateQuestion.id}`,
+          ))
+        })
+      })
+      return
+    }
 
     Object.entries(scheduleData.teachers).forEach(([teacher, subjects]) => {
       templateQuestions.forEach((templateQuestion) => {
-        if (!questionUsesSubject(templateQuestion)) {
+        const tag = getQuestionTag(templateQuestion)
+
+        if (tag !== 'subject') {
           expanded.push(normalizeQuestion(
             templateQuestion,
             { teacher, subject: '', group },

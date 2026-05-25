@@ -307,6 +307,16 @@
   width: 100%;
 }
 
+.blueprintHint {
+  padding: 10px 12px;
+  color: #334155;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .blueprintCard {
   display: flex;
   flex-direction: column;
@@ -370,6 +380,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.validationMessage {
+  color: #b42318;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .scaleRow {

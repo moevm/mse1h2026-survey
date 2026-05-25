@@ -11,6 +11,8 @@ import { TagBar } from './TagBar'
 import { OptionItem } from '../question/OptionItem'
 import styles from '../SurveyBuilder.module.css'
 
+const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
+
 const blueprintQuestionType = {
   text: 'Текстовый',
   radio: 'Радио',
@@ -23,6 +25,22 @@ const defaultOptions = {
   radio: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
   checkbox: [{ id: crypto.randomUUID(), value: 'Вариант 1' }],
   scale: { min: 0, max: 10, step: 1 },
+}
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const getTemplateTagCount = (question) => {
+  const values = [
+    question.title,
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
+  ]
+
+  return values.reduce((count, value) => (
+    count + (String(value ?? '').match(TEMPLATE_TAG_RE)?.length ?? 0)
+  ), 0)
 }
 
 export const BlueprintQuestionItem = ({
@@ -75,6 +93,7 @@ export const BlueprintQuestionItem = ({
 
   const showOptions = ['radio', 'checkbox'].includes(question.type)
   const showScale = question.type === 'scale'
+  const templateTagCount = getTemplateTagCount(question)
   const optionsDroppableId = `bopt__${parentId}__${question.id}`
   const optionsDndType = `BLUEPRINT_OPT_${question.id}`
 
@@ -115,6 +134,12 @@ export const BlueprintQuestionItem = ({
           </div>
         )}
       </div>
+
+      {templateTagCount > 1 && (
+        <div className={styles.validationMessage}>
+          В одном шаблонном вопросе можно использовать только одну F-строку.
+        </div>
+      )}
 
       {showOptions && (
         <div className={styles.fieldGroup}>

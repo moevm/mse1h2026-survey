@@ -167,6 +167,24 @@ const getInitialSurvey = (initialData) => {
 
 const getQuestionOptions = (question) => question.options ?? question.answers ?? []
 
+const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const getBlueprintQuestionTagCount = (question) => {
+  const values = [
+    question.title,
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
+  ]
+
+  return values.reduce((count, value) => (
+    count + (String(value ?? '').match(TEMPLATE_TAG_RE)?.length ?? 0)
+  ), 0)
+}
+
 const hasInvalidListOptions = (question) => {
   if (!['radio', 'checkbox'].includes(question.type)) return false
   const options = getQuestionOptions(question)
@@ -182,7 +200,11 @@ const isInvalidQuestion = (question) => {
     const blueprintQuestions = Array.isArray(getQuestionOptions(question)) ? getQuestionOptions(question) : []
     return (
       blueprintQuestions.length === 0 ||
-      blueprintQuestions.some((item) => !String(item.title ?? '').trim() || hasInvalidListOptions(item))
+      blueprintQuestions.some((item) => (
+        !String(item.title ?? '').trim() ||
+        hasInvalidListOptions(item) ||
+        getBlueprintQuestionTagCount(item) > 1
+      ))
     )
   }
   return !String(question.title ?? '').trim() || hasInvalidListOptions(question)

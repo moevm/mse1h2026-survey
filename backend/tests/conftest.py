@@ -2,12 +2,15 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+import main
 from main import app
 import os
 from dotenv import load_dotenv
 from database import Base, get_db
 
 load_dotenv()
+
+main.init_db = lambda: None
 
 SQLALCHEMY_DATABASE_URL = os.getenv('TEST_DATABASE_URL')
 

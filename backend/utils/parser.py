@@ -114,6 +114,51 @@ def _fetch_records(url: str) -> list[dict]:
     return all_records
 
 
+def _column_tag_name(name: str, fallback: str) -> str:
+    lower_name = name.lower()
+    if "преподав" in lower_name:
+        return "teacher"
+    if "груп" in lower_name:
+        return "group"
+    if "предмет" in lower_name or "дисциплин" in lower_name:
+        return "subject"
+
+    tag = re.sub(r"\s+", "_", name.strip())
+    tag = re.sub(r"[{}]+", "", tag)
+    return tag or fallback
+
+
+def get_sheet_columns(url: str) -> list[dict]:
+    sheet_id = extract_sheet_id(url)
+    workbook = download_workbook(sheet_id)
+
+    if not workbook.sheet_names:
+        raise HTTPException(status_code=422, detail="В таблице нет листов.")
+
+    df = workbook.parse(workbook.sheet_names[0], header=None)
+    if df.empty:
+        raise HTTPException(status_code=422, detail="Первый лист таблицы пустой.")
+
+    tag_counts: dict[str, int] = {}
+    label_counts: dict[str, int] = {}
+    columns = []
+
+    for idx, value in enumerate(df.iloc[0].tolist(), start=1):
+        label = _clean_name(value) or f"Колонка {idx}"
+        base_tag = _column_tag_name(label, f"column_{idx}")
+        tag_counts[base_tag] = tag_counts.get(base_tag, 0) + 1
+        label_counts[label] = label_counts.get(label, 0) + 1
+        suffix = f"_{tag_counts[base_tag]}" if tag_counts[base_tag] > 1 else ""
+        visible_label = f"{label} ({label_counts[label]})" if label_counts[label] > 1 else label
+
+        columns.append({
+            "option": visible_label,
+            "value": f"{{{{{base_tag}{suffix}}}}}",
+        })
+
+    return columns
+
+
 def _populate(records: list[dict], session: Session, survey_id: str = None) -> dict:
     teacher_cache: dict[str, Teacher] = {t.name: t for t in session.query(Teacher).all()}
     discipline_cache: dict[str, Discipline] = {d.name: d for d in session.query(Discipline).all()}

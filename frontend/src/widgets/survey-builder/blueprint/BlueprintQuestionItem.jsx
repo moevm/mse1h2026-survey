@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { FiTrash2 } from 'react-icons/fi'
+import { FiArrowDown, FiArrowUp, FiTrash2 } from 'react-icons/fi'
 import { MdDragIndicator } from 'react-icons/md'
 import { Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from '@shared/ui/input'
@@ -10,6 +10,8 @@ import { Toolbar } from '@shared/ui/toolbar'
 import { TagBar } from './TagBar'
 import { OptionItem } from '../question/OptionItem'
 import styles from '../SurveyBuilder.module.css'
+
+const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
 
 const blueprintQuestionType = {
   text: 'Текстовый',
@@ -25,6 +27,22 @@ const defaultOptions = {
   scale: { min: 0, max: 10, step: 1 },
 }
 
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const getTemplateTagCount = (question) => {
+  const values = [
+    question.title,
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
+  ]
+
+  return values.reduce((count, value) => (
+    count + (String(value ?? '').match(TEMPLATE_TAG_RE)?.length ?? 0)
+  ), 0)
+}
+
 export const BlueprintQuestionItem = ({
   parentId,
   question,
@@ -32,6 +50,10 @@ export const BlueprintQuestionItem = ({
   blueprintTags = [],
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
   dragHandleProps,
 }) => {
   const titleRef = useRef(null)
@@ -71,6 +93,7 @@ export const BlueprintQuestionItem = ({
 
   const showOptions = ['radio', 'checkbox'].includes(question.type)
   const showScale = question.type === 'scale'
+  const templateTagCount = getTemplateTagCount(question)
   const optionsDroppableId = `bopt__${parentId}__${question.id}`
   const optionsDndType = `BLUEPRINT_OPT_${question.id}`
 
@@ -111,6 +134,12 @@ export const BlueprintQuestionItem = ({
           </div>
         )}
       </div>
+
+      {templateTagCount > 1 && (
+        <div className={styles.validationMessage}>
+          В одном шаблонном вопросе можно использовать только одну F-строку.
+        </div>
+      )}
 
       {showOptions && (
         <div className={styles.fieldGroup}>
@@ -170,9 +199,31 @@ export const BlueprintQuestionItem = ({
           />
         }
         right={
-          <button type="button" onClick={onRemove} className={styles.removeIconBtn} aria-label="Удалить вопрос">
-            <FiTrash2 size={18} />
-          </button>
+          <div className={styles.toolbarActions}>
+            <div className={styles.orderControls}>
+              <button
+                type="button"
+                className={styles.orderBtn}
+                onClick={onMoveUp}
+                disabled={!canMoveUp}
+                title="Переместить выше"
+              >
+                <FiArrowUp size={16} />
+              </button>
+              <button
+                type="button"
+                className={styles.orderBtn}
+                onClick={onMoveDown}
+                disabled={!canMoveDown}
+                title="Переместить ниже"
+              >
+                <FiArrowDown size={16} />
+              </button>
+            </div>
+            <button type="button" onClick={onRemove} className={styles.removeIconBtn} aria-label="Удалить вопрос">
+              <FiTrash2 size={18} />
+            </button>
+          </div>
         }
       />
     </Card>

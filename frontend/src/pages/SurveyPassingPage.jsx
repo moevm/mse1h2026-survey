@@ -10,11 +10,62 @@ import { SurveySquareSidebar } from '@widgets/survey-sidebar';
 import { request } from '@shared/api/axios';
 import styles from './SurveyPassingPage.module.css';
 
+const TEMPLATE_TAG_RE = /\{\{([^{}]+)\}\}/g
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const PASSING_DRAFT_PREFIX = 'survey-passing-draft'
+
+const getPassingDraftKey = (surveyId, group) => (
+  `${PASSING_DRAFT_PREFIX}:${surveyId}:${group || 'no-group'}`
+)
+
+const readPassingDraft = (surveyId, group) => {
+  try {
+    const rawDraft = window.localStorage.getItem(getPassingDraftKey(surveyId, group))
+    return rawDraft ? JSON.parse(rawDraft) : null
+  } catch (err) {
+    console.error(err)
+    return null
+  }
+}
+
+const savePassingDraft = (surveyId, group, answers) => {
+  try {
+    window.localStorage.setItem(getPassingDraftKey(surveyId, group), JSON.stringify({
+      answers,
+      updatedAt: Date.now(),
+    }))
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const clearPassingDraft = (surveyId, group) => {
+  try {
+    window.localStorage.removeItem(getPassingDraftKey(surveyId, group))
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const filterDraftAnswers = (draftAnswers, questions) => {
+  const questionIds = new Set(questions.map((question) => String(question.id)))
+
+  return Object.entries(draftAnswers ?? {}).reduce((result, [questionId, value]) => {
+    if (questionIds.has(String(questionId))) {
+      result[questionId] = value
+    }
+    return result
+  }, {})
+}
+
 const replaceBlueprintTags = (value, context) => (
-  String(value ?? '')
-    .replaceAll('{{teacher}}', context.teacher)
-    .replaceAll('{{group}}', context.group)
-    .replaceAll('{{subject}}', context.subject)
+  String(value ?? '').replace(TEMPLATE_TAG_RE, (match, tag) => (
+    context[tag] ?? match
+  ))
 )
 
 const normalizeQuestion = (question, context = null, fallbackId = question.id) => {
@@ -27,7 +78,7 @@ const normalizeQuestion = (question, context = null, fallbackId = question.id) =
 
   if (['radio', 'checkbox'].includes(question.type)) {
     normalized.answers = (question.answers ?? question.options ?? []).map(option => (
-      context ? replaceBlueprintTags(option, context) : option
+      context ? replaceBlueprintTags(getOptionValue(option), context) : getOptionValue(option)
     ))
   }
 
@@ -40,14 +91,41 @@ const normalizeQuestion = (question, context = null, fallbackId = question.id) =
   return normalized
 }
 
-const questionUsesSubject = (question) => {
+const getQuestionTag = (question) => {
   const values = [
     question.title,
-    ...(question.answers ?? []),
-    ...(Array.isArray(question.options) ? question.options : []),
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
   ]
 
-  return values.some(value => String(value ?? '').includes('{{subject}}'))
+  const tags = values
+    .flatMap(value => [...String(value ?? '').matchAll(TEMPLATE_TAG_RE)].map(match => match[1]))
+
+  return tags[0] ?? null
+}
+
+const getBlueprintMode = (templateQuestions) => {
+  for (const question of templateQuestions) {
+    const tag = getQuestionTag(question)
+    if (tag === 'teacher' || tag === 'subject') {
+      return tag
+    }
+  }
+
+  return 'teacher'
+}
+
+const getScheduleIndexes = (teachers = {}) => {
+  const subjectTeachers = {}
+
+  Object.entries(teachers).forEach(([teacher, subjects]) => {
+    subjects.forEach((subject) => {
+      subjectTeachers[subject] = subjectTeachers[subject] ?? []
+      subjectTeachers[subject].push(teacher)
+    })
+  })
+
+  return { subjectTeachers }
 }
 
 const expandBlueprintQuestions = (questions, scheduleData, group) => {
@@ -64,10 +142,40 @@ const expandBlueprintQuestions = (questions, scheduleData, group) => {
     }
 
     const templateQuestions = Array.isArray(question.options) ? question.options : []
+    const mode = getBlueprintMode(templateQuestions)
+    const { subjectTeachers } = getScheduleIndexes(scheduleData.teachers)
+
+    if (mode === 'subject') {
+      Object.entries(subjectTeachers).forEach(([subject, teachers]) => {
+        templateQuestions.forEach((templateQuestion) => {
+          const tag = getQuestionTag(templateQuestion)
+
+          if (tag === 'teacher') {
+            teachers.forEach((teacher) => {
+              expanded.push(normalizeQuestion(
+                templateQuestion,
+                { teacher, subject, group },
+                `${question.id}-${subject}-${teacher}-${templateQuestion.id}`,
+              ))
+            })
+            return
+          }
+
+          expanded.push(normalizeQuestion(
+            templateQuestion,
+            { teacher: '', subject, group },
+            `${question.id}-${subject}-${templateQuestion.id}`,
+          ))
+        })
+      })
+      return
+    }
 
     Object.entries(scheduleData.teachers).forEach(([teacher, subjects]) => {
       templateQuestions.forEach((templateQuestion) => {
-        if (!questionUsesSubject(templateQuestion)) {
+        const tag = getQuestionTag(templateQuestion)
+
+        if (tag !== 'subject') {
           expanded.push(normalizeQuestion(
             templateQuestion,
             { teacher, subject: '', group },
@@ -90,6 +198,14 @@ const expandBlueprintQuestions = (questions, scheduleData, group) => {
   return expanded
 }
 
+const isAnswerFilled = (value) => {
+  if (Array.isArray(value)) {
+    return value.some((item) => String(item ?? '').trim())
+  }
+
+  return value !== undefined && String(value ?? '').trim() !== ''
+}
+
 export const SurveyPassingPage = () => {
   const uuid = window.location.pathname.match(/\/survey\/([^/]+)/)?.[1];
   const navigate = useNavigate()
@@ -109,29 +225,31 @@ export const SurveyPassingPage = () => {
     }));
   };
 
-  const isComplete = questions.every((question) => {
-    const val = answers[question.id];
-    return val !== undefined && val !== '';
-  });
+  const isComplete = questions.every((question) => (
+    !question.isRequired || isAnswerFilled(answers[question.id])
+  ));
 
   useEffect(() => {
     const loadSurvey = async () => {
       try {
-        const response = await request('GET', `/survey/${uuid}`)
+        const response = await request('GET', `/public/survey/${uuid}`)
         let scheduleData = null
 
         if (group) {
           try {
-            scheduleData = await request('GET', `/group_data/${group}`)
+            scheduleData = await request('GET', `/group_data/${group}`, { survey_id: uuid })
           } catch (err) {
             console.error(err)
           }
         }
 
-        setSurvey({
+        const nextSurvey = {
           ...response,
-          questions: expandBlueprintQuestions(response.questions ?? [], scheduleData, group)
-        })
+          questions: expandBlueprintQuestions(response.questions ?? [], scheduleData, group),
+        }
+        const draftAnswers = readPassingDraft(uuid, group)?.answers
+        setAnswers(filterDraftAnswers(draftAnswers, nextSurvey.questions))
+        setSurvey(nextSurvey)
       } catch (err) {
         setError(err)
       } finally {
@@ -141,7 +259,13 @@ export const SurveyPassingPage = () => {
     loadSurvey();
   }, [uuid, group]);
 
+  useEffect(() => {
+    if (!survey) return
+    savePassingDraft(uuid, group, answers)
+  }, [uuid, group, survey, answers])
+
   const handleFinish = () => {
+    clearPassingDraft(uuid, group)
     navigate('../result')
   };
 

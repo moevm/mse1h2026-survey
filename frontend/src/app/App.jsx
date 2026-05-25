@@ -1,35 +1,65 @@
-import {  
-  Routes, 
-  Route, 
+import { useEffect, useState } from 'react'
+import {
+  Routes,
+  Route,
   Navigate,
-  BrowserRouter 
+  BrowserRouter,
 } from 'react-router-dom'
+import { request } from '@shared/api/axios'
 
-import { 
-  SurveyPassingPage, 
-  SurveyResultPage, 
-  SurveyBuilderPage, 
-  HealthPage, 
-  DashBoardPage, 
-  HomePage, 
+import {
+  SurveyPassingPage,
+  SurveyResultPage,
+  SurveyBuilderPage,
+  HealthPage,
+  DashBoardPage,
+  HomePage,
   LoginPage,
   RegisterPage,
-  NotFoundPage // Импортируем нашу новую страницу-заглушку
-} from '@pages';
+  NotFoundPage,
+} from '@pages'
+
+const AdminRoute = ({ children }) => {
+  const [status, setStatus] = useState('checking')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const checkAccess = async () => {
+      try {
+        const user = await request('GET', '/me')
+        if (!isMounted) return
+        setStatus(user.role === 'admin' ? 'allowed' : 'denied')
+      } catch {
+        if (isMounted) setStatus('denied')
+      }
+    }
+
+    checkAccess()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (status === 'checking') return null
+  if (status === 'denied') return <Navigate to="/login" replace />
+
+  return children
+}
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/dashboard" element={<DashBoardPage />} />
-        <Route path="/builder" element={<SurveyBuilderPage />} />
-        <Route path="/builder/:id" element={<SurveyBuilderPage />} />
+        <Route path="/" element={<NotFoundPage />} />
+        <Route path="/dashboard" element={<AdminRoute><DashBoardPage /></AdminRoute>} />
+        <Route path="/builder" element={<AdminRoute><SurveyBuilderPage /></AdminRoute>} />
+        <Route path="/builder/:id" element={<AdminRoute><SurveyBuilderPage /></AdminRoute>} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Используем двоеточие :uuid — теперь React Router сам поймет динамический адрес */}
+
         <Route path="/survey/:uuid">
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<HomePage />} />
@@ -37,7 +67,6 @@ export function App() {
           <Route path="result" element={<SurveyResultPage />} />
         </Route>
 
-        {/* Хэндлер для любых несуществующих страниц (404) */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

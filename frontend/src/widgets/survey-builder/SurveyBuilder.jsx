@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiArrowLeftLongLine } from 'react-icons/ri'
 import { Input } from '@shared/ui/input'
@@ -16,6 +16,39 @@ const defaultBlueprintRows = [
   { option: 'Группа', value: '{{group}}' },
   { option: 'Предмет', value: '{{subject}}' },
 ]
+
+const BUILDER_DRAFT_PREFIX = 'survey-builder-draft'
+
+const getBuilderDraftKey = (id) => `${BUILDER_DRAFT_PREFIX}:${id ?? 'create'}`
+
+const readBuilderDraft = (id) => {
+  try {
+    const rawDraft = window.localStorage.getItem(getBuilderDraftKey(id))
+    return rawDraft ? JSON.parse(rawDraft) : null
+  } catch (err) {
+    console.error(err)
+    return null
+  }
+}
+
+const saveBuilderDraft = (id, survey) => {
+  try {
+    window.localStorage.setItem(getBuilderDraftKey(id), JSON.stringify({
+      survey,
+      updatedAt: Date.now(),
+    }))
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const clearBuilderDraft = (id) => {
+  try {
+    window.localStorage.removeItem(getBuilderDraftKey(id))
+  } catch (err) {
+    console.error(err)
+  }
+}
 
 const SurveyStatus = ({ isActive }) => (
   <div className={styles.statusBlock}>
@@ -116,18 +149,41 @@ const normalizeQuestionForBuilder = (question) => {
   return nextQuestion
 }
 
-const getInitialSurvey = (initialData) => ({
-  title: initialData?.title || '',
-  description: initialData?.description || '',
-  blueprintLink: initialData?.blueprint_link || initialData?.blueprintLink || '',
-  blueprintRows: initialData?.blueprint_rows || initialData?.blueprintRows || defaultBlueprintRows,
-  selectedBlueprintRows: initialData?.selected_blueprint_rows || initialData?.selectedBlueprintRows || [],
-  isActive: initialData?.is_active ?? false,
-  questions: (initialData?.questions || []).map(normalizeQuestionForBuilder),
-  groups: initialData?.groups || ['3341'],
-})
+const getInitialSurvey = (initialData) => {
+  const draft = readBuilderDraft(initialData?.id)?.survey
+  const source = draft ?? initialData ?? {}
+
+  return {
+    title: source.title || '',
+    description: source.description || '',
+    blueprintLink: source.google_sheets_link || source.blueprint_link || source.blueprintLink || '',
+    blueprintRows: source.blueprint_rows || source.blueprintRows || defaultBlueprintRows,
+    selectedBlueprintRows: source.selected_blueprint_rows || source.selectedBlueprintRows || [],
+    isActive: source.is_active ?? source.isActive ?? false,
+    questions: (source.questions || []).map(normalizeQuestionForBuilder),
+    groups: source.groups || ['3341'],
+  }
+}
 
 const getQuestionOptions = (question) => question.options ?? question.answers ?? []
+
+const TEMPLATE_TAG_RE = /\{\{[^{}]+\}\}/g
+
+const getOptionValue = (option) => (
+  typeof option === 'object' && option !== null ? option.value : option
+)
+
+const getBlueprintQuestionTagCount = (question) => {
+  const values = [
+    question.title,
+    ...(question.answers ?? []).map(getOptionValue),
+    ...(Array.isArray(question.options) ? question.options.map(getOptionValue) : []),
+  ]
+
+  return values.reduce((count, value) => (
+    count + (String(value ?? '').match(TEMPLATE_TAG_RE)?.length ?? 0)
+  ), 0)
+}
 
 const hasInvalidListOptions = (question) => {
   if (!['radio', 'checkbox'].includes(question.type)) return false
@@ -144,7 +200,11 @@ const isInvalidQuestion = (question) => {
     const blueprintQuestions = Array.isArray(getQuestionOptions(question)) ? getQuestionOptions(question) : []
     return (
       blueprintQuestions.length === 0 ||
-      blueprintQuestions.some((item) => !String(item.title ?? '').trim() || hasInvalidListOptions(item))
+      blueprintQuestions.some((item) => (
+        !String(item.title ?? '').trim() ||
+        hasInvalidListOptions(item) ||
+        getBlueprintQuestionTagCount(item) > 1
+      ))
     )
   }
   return !String(question.title ?? '').trim() || hasInvalidListOptions(question)
@@ -155,6 +215,7 @@ export const SurveyBuilder = ({ initialData }) => {
   const [survey, setSurvey] = useState(() => getInitialSurvey(initialData))
 
   const isEditMode = Boolean(initialData?.id)
+  const draftId = initialData?.id
 
   const hasInvalidQuestions = survey.questions.some(isInvalidQuestion)
   const hasBlueprintLink = Boolean(survey.blueprintLink.trim())
@@ -168,14 +229,48 @@ export const SurveyBuilder = ({ initialData }) => {
 
   const updateMeta = (data) => setSurvey((prev) => ({ ...prev, ...data }))
 
+  useEffect(() => {
+    saveBuilderDraft(draftId, survey)
+  }, [draftId, survey])
+
   const handleBlueprintLinkChange = (blueprintLink) => {
     setSurvey((prev) => ({
       ...prev,
       blueprintLink,
+      blueprintRows: defaultBlueprintRows,
       selectedBlueprintRows: [],
       questions: prev.questions.filter((question) => question.type !== 'blueprint'),
     }))
   }
+
+  useEffect(() => {
+    const link = survey.blueprintLink.trim()
+    if (!link) return
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await request('POST', '/sheets_columns', {
+          url: link,
+          delete_old_data: false,
+        })
+        const columns = response.columns ?? []
+        if (!columns.length) return
+
+        setSurvey((prev) => {
+          const allowedTags = new Set(columns.map((row) => row.value))
+          return {
+            ...prev,
+            blueprintRows: columns,
+            selectedBlueprintRows: prev.selectedBlueprintRows.filter((tag) => allowedTags.has(tag)),
+          }
+        })
+      } catch (err) {
+        console.error(err)
+      }
+    }, 600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [survey.blueprintLink])
 
   const toggleBlueprintRow = (value, checked) => {
     setSurvey((prev) => ({
@@ -220,24 +315,36 @@ export const SurveyBuilder = ({ initialData }) => {
     setSurvey((prev) => ({ ...prev, questions: nextQuestions }))
   }
 
+  const importBlueprintData = async (surveyId) => {
+    const link = survey.blueprintLink.trim()
+    if (!link || !surveyId) return
+
+    await request('POST', `/survey/${surveyId}/set_sheets_link`, {
+      url: link,
+      delete_old_data: true,
+    })
+    await request('POST', `/survey/${surveyId}/import_from_sheets`)
+  }
+
   const handleSave = async () => {
     try {
       if (isEditMode) {
         const payload = {
           title: survey.title.trim(),
           description: survey.description.trim(),
-          blueprint_link: survey.blueprintLink.trim(),
+          google_sheets_link: survey.blueprintLink.trim(),
           selected_blueprint_rows: survey.selectedBlueprintRows,
           is_active: survey.isActive,
           questions: survey.questions,
           groups: survey.groups,
         }
         await request('PUT', `/survey/${initialData.id}`, payload)
+        await importBlueprintData(initialData.id)
       } else {
         const formData = new FormData()
         formData.append('title', survey.title.trim())
         formData.append('description', survey.description.trim())
-        formData.append('blueprint_link', survey.blueprintLink.trim())
+        formData.append('google_sheets_link', survey.blueprintLink.trim())
         formData.append('selected_blueprint_rows', JSON.stringify(survey.selectedBlueprintRows))
         formData.append('is_active', survey.isActive ? 'true' : 'false')
         formData.append('questions', JSON.stringify(survey.questions))
@@ -245,8 +352,10 @@ export const SurveyBuilder = ({ initialData }) => {
         if (survey.lifetime_seconds) {
           formData.append('lifetime_seconds', survey.lifetime_seconds)
         }
-        await request('POST', '/survey', formData)
+        const createdSurvey = await request('POST', '/survey', formData)
+        await importBlueprintData(createdSurvey.id)
       }
+      clearBuilderDraft(draftId)
       navigate('/dashboard')
     } catch (err) {
       console.error('Save error:', err)
@@ -265,6 +374,7 @@ export const SurveyBuilder = ({ initialData }) => {
       if (!ok) return
       try {
         await request('DELETE', `/survey/${initialData.id}`)
+        clearBuilderDraft(draftId)
         navigate('/dashboard')
       } catch (err) {
         console.error('Delete error:', err)
@@ -276,6 +386,7 @@ export const SurveyBuilder = ({ initialData }) => {
         const ok = window.confirm('Отменить создание опроса? Введенные данные будут потеряны.')
         if (!ok) return
       }
+      clearBuilderDraft(draftId)
       navigate('/dashboard')
     }
   }

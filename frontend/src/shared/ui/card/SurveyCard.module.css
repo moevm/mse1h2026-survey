@@ -65,6 +65,24 @@
   color: #d0d0d0;
 }
 
+.idSpoiler {
+  max-width: 190px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  font-weight: var(--font-weight-semi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.idSpoiler:hover {
+  color: #4b2aa0;
+}
+
 .actions {
   display: flex;
   width: 100%;

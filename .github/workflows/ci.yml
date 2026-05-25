@@ -37,11 +37,25 @@ jobs:
           python-version: "3.12"
 
       - name: Install backend dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pytest-cov
 
       - name: Run backend tests
         working-directory: backend
-        run: python -m pytest -q
+        run: >
+          python -m pytest -q
+          --cov=main
+          --cov=models
+          --cov=schemas
+          --cov=utils
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-fail-under=20
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
 
   frontend:
     runs-on: ubuntu-latest

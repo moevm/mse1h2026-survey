@@ -7,6 +7,7 @@ export const QuestionOptionGroup = ({
   id,
   currentStep,
   totalSteps,
+  isRequired,
   error,
   disabled,
   children,
@@ -24,7 +25,10 @@ export const QuestionOptionGroup = ({
       className={cardClasses}
     >
       <legend className={styles.wrapper}>
-        <span className={styles.title}>{`${currentStep}. ${title}`}</span>
+        <span className={styles.title}>
+          {`${currentStep}. ${title}`}
+          {isRequired && <span className={styles.requiredMark}>*</span>}
+        </span>
         <span className={styles.divider}></span>
       </legend>
       {children}

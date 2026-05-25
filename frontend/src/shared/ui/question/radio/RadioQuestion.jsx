@@ -7,6 +7,7 @@ export const RadioQuestion = ({
   id,
   currentStep,
   totalSteps,
+  isRequired,
   answers,
   value,
   onChange,
@@ -19,6 +20,7 @@ export const RadioQuestion = ({
       id={id}
       currentStep={currentStep}
       totalSteps={totalSteps}
+      isRequired={isRequired}
       error={error}
       disabled={disabled}
     >

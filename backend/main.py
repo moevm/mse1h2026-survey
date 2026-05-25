@@ -339,6 +339,15 @@ def login(user_data: UserLogin, response: Response, db: Session = Depends(get_db
     return {"message": "Успешный вход"}
 
 
+@app.get('/me')
+def get_me(current_user: User = Depends(auth.get_current_user_required)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role": current_user.role,
+    }
+
+
 @app.get("/group_data/{group}")
 def get_data_by_group(group: str, survey_id: Optional[UUID] = None, db: Session = Depends(get_db)):
     query = (

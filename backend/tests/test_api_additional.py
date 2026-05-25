@@ -1,4 +1,4 @@
-from models import Discipline, Group, GroupTeacherDiscipline, Teacher
+﻿from models import Discipline, Group, GroupTeacherDiscipline, Teacher
 
 
 def test_health_returns_service_status(client):
@@ -19,7 +19,7 @@ def test_register_password_mismatch(client):
     })
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Пароли не совпадают"
+    assert response.json()["detail"] == "РџР°СЂРѕР»Рё РЅРµ СЃРѕРІРїР°РґР°СЋС‚"
 
 
 def test_register_duplicate_username(client):
@@ -34,7 +34,7 @@ def test_register_duplicate_username(client):
 
     assert first_response.status_code == 200
     assert second_response.status_code == 400
-    assert second_response.json()["detail"] == "Пользователь с таким именем уже существует"
+    assert second_response.json()["detail"] == "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј РёРјРµРЅРµРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚"
 
 
 def test_login_invalid_credentials(client):
@@ -44,7 +44,7 @@ def test_login_invalid_credentials(client):
     })
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Неверный логин или пароль"
+    assert response.json()["detail"] == "РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ"
     assert "access_token" not in client.cookies
 
 
@@ -58,7 +58,7 @@ def test_admin_route_requires_auth(client):
     })
 
     assert response.status_code == 401
-    assert response.json()["detail"] == "Необходима авторизация"
+    assert response.json()["detail"] == "РќРµРѕР±С…РѕРґРёРјР° Р°РІС‚РѕСЂРёР·Р°С†РёСЏ"
 
 
 def test_regular_user_cannot_create_survey(client):
@@ -81,14 +81,14 @@ def test_regular_user_cannot_create_survey(client):
     })
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Доступ запрещен"
+    assert response.json()["detail"] == "Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ"
 
 
 def test_get_unknown_survey_returns_404(client):
     response = client.get("/survey/00000000-0000-0000-0000-000000000000")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Опрос не найден"
+    assert response.json()["detail"] == "Not found survey with this ID"
 
 
 def test_group_data_returns_disciplines_by_teacher(client, db_session):
@@ -98,7 +98,6 @@ def test_group_data_returns_disciplines_by_teacher(client, db_session):
     second_discipline = Discipline(name="CI Discipline B")
 
     db_session.add_all([group, teacher, first_discipline, second_discipline])
-    db_session.flush()
     db_session.add_all([
         GroupTeacherDiscipline(
             group_id=group.id,

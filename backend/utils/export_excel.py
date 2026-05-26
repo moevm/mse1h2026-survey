@@ -6,7 +6,15 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, PieChart, Reference
 import io
 
-from utils.visualization_functions import Survey, SurveyVisualizer, normalize_question_type, get_question_id, get_question_text, get_question_options
+from utils.visualization_functions import (
+    Survey,
+    SurveyVisualizer,
+    normalize_question_type,
+    get_question_id,
+    get_question_text,
+    get_question_options,
+    get_question_groups,
+)
 
 
 def _question_label(question: Dict, index: int) -> str:
@@ -36,8 +44,11 @@ class ExcelExporter:
         self._create_info_sheet(wb, survey)
         self._create_raw_data_sheet(wb, survey_id, survey)
 
-        for idx, question in enumerate(survey.questions, start=1):
-            self._create_question_stats_sheet(wb, survey_id, question, idx)
+        for idx, item in enumerate(get_question_groups(survey.questions), start=1):
+            if item["type"] == "group":
+                self._create_question_group_stats_sheet(wb, survey_id, item, idx)
+            else:
+                self._create_question_stats_sheet(wb, survey_id, item["question"], idx)
 
         if filename:
             wb.save(filename)
@@ -128,24 +139,49 @@ class ExcelExporter:
             ws.column_dimensions[col_letter].width = max_length + 2
 
     def _create_question_stats_sheet(self, wb: Workbook, survey_id: int, question: Dict, index: int):
-        question_id = get_question_id(question)
-        question_text = get_question_text(question)
-        question_type = normalize_question_type(question.get('type', 'text'))
-        question_label = _question_label(question, index)
+        sheet_name = f"Q{index}"
+        ws = wb.create_sheet(sheet_name)
+        self._write_question_stats(ws, survey_id, question, index, 1)
 
+    def _create_question_group_stats_sheet(self, wb: Workbook, survey_id: int, group: Dict, index: int):
         sheet_name = f"Q{index}"
         ws = wb.create_sheet(sheet_name)
 
-        ws['A1'] = f"{question_label}: {question_text}"
+        ws['A1'] = f"Question {index}: {group['label']}"
         ws['A1'].font = Font(size=12, bold=True)
         ws.merge_cells('A1:F1')
-
-        ws['A2'] = f"Type: {question_type}"
+        ws['A2'] = "Blueprint question group"
         ws.merge_cells('A2:F2')
+
+        row = 4
+        for sub_index, question in enumerate(group["questions"], start=1):
+            row = self._write_question_stats(ws, survey_id, question, sub_index, row, prefix="Subquestion")
+            row += 2
+
+    def _write_question_stats(
+        self,
+        ws,
+        survey_id: int,
+        question: Dict,
+        index: int,
+        start_row: int,
+        prefix: str = "Question",
+    ) -> int:
+        question_id = get_question_id(question)
+        question_text = get_question_text(question)
+        question_type = normalize_question_type(question.get('type', 'text'))
+        question_label = question.get("report_label") or f"{prefix} {index}"
+
+        ws[f'A{start_row}'] = f"{question_label}: {question_text}"
+        ws[f'A{start_row}'].font = Font(size=12, bold=True)
+        ws.merge_cells(start_row=start_row, start_column=1, end_row=start_row, end_column=6)
+
+        ws[f'A{start_row + 1}'] = f"Type: {question_type}"
+        ws.merge_cells(start_row=start_row + 1, start_column=1, end_row=start_row + 1, end_column=6)
 
         values = self.visualizer.get_question_values(survey_id, question_id)
 
-        row = 4
+        row = start_row + 3
 
         if question_type == 'choice':
             stats = self.visualizer.stats.choice_stats(values, get_question_options(question))
@@ -262,6 +298,7 @@ class ExcelExporter:
         ws.column_dimensions['A'].width = 30
         ws.column_dimensions['B'].width = 15
         ws.column_dimensions['C'].width = 15
+        return row
 
 
 class MultiSurveyExporter:
@@ -285,8 +322,11 @@ class MultiSurveyExporter:
             temp_exporter._create_info_sheet(temp_wb, survey)
             temp_exporter._create_raw_data_sheet(temp_wb, survey_id, survey)
 
-            for question in survey.questions:
-                temp_exporter._create_question_stats_sheet(temp_wb, survey_id, question)
+            for idx, item in enumerate(get_question_groups(survey.questions), start=1):
+                if item["type"] == "group":
+                    temp_exporter._create_question_group_stats_sheet(temp_wb, survey_id, item, idx)
+                else:
+                    temp_exporter._create_question_stats_sheet(temp_wb, survey_id, item["question"], idx)
 
             for sheet_name in temp_wb.sheetnames:
                 source_sheet = temp_wb[sheet_name]

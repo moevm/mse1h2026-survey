@@ -49,6 +49,30 @@ def get_question_options(question: Dict[str, Any]) -> Optional[List[str]]:
     return [str(option) for option in options]
 
 
+def get_question_groups(questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    groups = []
+    group_indexes = {}
+
+    for question in questions:
+        group_id = question.get("report_group_id")
+        if not group_id:
+            groups.append({"type": "question", "question": question})
+            continue
+
+        if group_id not in group_indexes:
+            group_indexes[group_id] = len(groups)
+            groups.append({
+                "type": "group",
+                "id": group_id,
+                "label": question.get("report_group_label") or group_id,
+                "questions": [],
+            })
+
+        groups[group_indexes[group_id]]["questions"].append(question)
+
+    return groups
+
+
 def get_answer_question_id(answer_item: Dict[str, Any]) -> Any:
     return answer_item.get(
         "question_id",

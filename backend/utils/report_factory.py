@@ -100,9 +100,19 @@ def _normalize_question(question: dict[str, Any], context: dict[str, Any], quest
     return normalized
 
 
-def _append_question(result: list[dict[str, Any]], question: dict[str, Any], context: dict[str, Any], question_id: str) -> None:
+def _append_question(
+    result: list[dict[str, Any]],
+    question: dict[str, Any],
+    context: dict[str, Any],
+    question_id: str,
+    group_id: str | None = None,
+    group_label: str | None = None,
+) -> None:
     normalized = _normalize_question(question, context, question_id)
     if normalized.get("type") in PASSING_QUESTION_TYPES and not _has_unresolved_tags(normalized):
+        if group_id and group_label:
+            normalized["report_group_id"] = group_id
+            normalized["report_group_label"] = group_label
         result.append(normalized)
 
 
@@ -145,6 +155,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
             subject_teachers[pair["subject"]].append(pair["teacher"])
 
         for subject, teachers in subject_teachers.items():
+            report_group_id = f"{question.get('id')}-{subject}"
+            report_group_label = subject
             for template_question in template_questions:
                 needs_teacher = _uses_tag(template_question, "teacher")
                 needs_subject = _uses_tag(template_question, "subject")
@@ -155,6 +167,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
                         template_question,
                         {"teacher": "", "subject": subject, "group": group},
                         f"{question.get('id')}-{subject}-{template_question.get('id')}",
+                        report_group_id,
+                        report_group_label,
                     )
                     continue
 
@@ -164,6 +178,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
                         template_question,
                         {"teacher": teacher, "subject": subject if needs_subject else "", "group": group},
                         f"{question.get('id')}-{subject}-{teacher}-{template_question.get('id')}",
+                        report_group_id,
+                        report_group_label,
                     )
         return result
 
@@ -172,6 +188,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
         teacher_subjects[pair["teacher"]].append(pair["subject"])
 
     for teacher, subjects in teacher_subjects.items():
+        report_group_id = f"{question.get('id')}-{teacher}"
+        report_group_label = teacher
         for template_question in template_questions:
             needs_teacher = _uses_tag(template_question, "teacher")
             needs_subject = _uses_tag(template_question, "subject")
@@ -182,6 +200,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
                     template_question,
                     {"teacher": teacher if needs_teacher else "", "subject": "", "group": group},
                     f"{question.get('id')}-{teacher}-{template_question.get('id')}",
+                    report_group_id,
+                    report_group_label,
                 )
                 continue
 
@@ -191,6 +211,8 @@ def _expand_blueprint(question: dict[str, Any], pairs: list[dict[str, str]], gro
                     template_question,
                     {"teacher": teacher if needs_teacher else "", "subject": subject, "group": group},
                     f"{question.get('id')}-{teacher}-{subject}-{template_question.get('id')}",
+                    report_group_id,
+                    report_group_label,
                 )
 
     return result

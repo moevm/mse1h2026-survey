@@ -156,7 +156,7 @@ jobs:
           --cov=utils
           --cov-report=term-missing
           --cov-report=xml
-          --cov-fail-under=45
+          --cov-fail-under=80
 
       - name: Upload backend test results
         if: always()

@@ -285,8 +285,8 @@ class MultiSurveyExporter:
             temp_exporter._create_info_sheet(temp_wb, survey)
             temp_exporter._create_raw_data_sheet(temp_wb, survey_id, survey)
 
-            for question in survey.questions:
-                temp_exporter._create_question_stats_sheet(temp_wb, survey_id, question)
+            for idx, question in enumerate(survey.questions, start=1):
+                temp_exporter._create_question_stats_sheet(temp_wb, survey_id, question, idx)
 
             for sheet_name in temp_wb.sheetnames:
                 source_sheet = temp_wb[sheet_name]

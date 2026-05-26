@@ -16,7 +16,14 @@ from reportlab.pdfbase.ttfonts import TTFont
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from utils.visualization_functions import SurveyVisualizer, normalize_question_type, get_question_id, get_question_text, get_question_options
+from utils.visualization_functions import (
+    SurveyVisualizer,
+    normalize_question_type,
+    get_question_id,
+    get_question_text,
+    get_question_options,
+    get_question_groups,
+)
 
 
 FONT_REGULAR = "Helvetica"
@@ -128,8 +135,11 @@ class PDFExporter:
         story.extend(self._create_survey_summary(survey_id, survey))
         story.append(PageBreak())
 
-        for idx, question in enumerate(survey.questions, start=1):
-            question_content = self._create_question_analysis(survey_id, question, include_charts, idx)
+        for idx, item in enumerate(get_question_groups(survey.questions), start=1):
+            if item["type"] == "group":
+                question_content = self._create_question_group_analysis(survey_id, item, include_charts, idx)
+            else:
+                question_content = self._create_question_analysis(survey_id, item["question"], include_charts, idx)
             if question_content:
                 story.extend(question_content)
                 story.append(PageBreak())
@@ -208,8 +218,35 @@ class PDFExporter:
 
         return story
 
+    def _create_question_group_analysis(self, survey_id: int, group: Dict,
+                                        include_charts: bool, index: int) -> List:
+        story = [
+            Paragraph(f"Question {index}: {group['label']}", self.styles['heading']),
+            Paragraph("Blueprint question group", self.styles['normal']),
+            Spacer(1, 0.3*cm),
+        ]
+
+        has_content = False
+        for sub_index, question in enumerate(group["questions"], start=1):
+            question_content = self._create_question_analysis(
+                survey_id,
+                question,
+                include_charts,
+                sub_index,
+                label_prefix="Subquestion",
+                force_label_prefix=True,
+            )
+            if question_content:
+                has_content = True
+                story.extend(question_content)
+                story.append(Spacer(1, 0.4*cm))
+
+        return story if has_content else []
+
     def _create_question_analysis(self, survey_id: int, question: Dict,
-                                   include_charts: bool, index: int) -> List:
+                                   include_charts: bool, index: int,
+                                   label_prefix: str = "Question",
+                                   force_label_prefix: bool = False) -> List:
         story = []
 
         question_id = get_question_id(question)
@@ -221,7 +258,12 @@ class PDFExporter:
         if len(values) == 0:
             return []
 
-        story.append(Paragraph(f"{_question_label(question, index)}: {question_text}",
+        question_label = (
+            f"{label_prefix} {index}"
+            if force_label_prefix
+            else question.get("report_label") or f"{label_prefix} {index}"
+        )
+        story.append(Paragraph(f"{question_label}: {question_text}",
                               self.styles['subheading']))
         story.append(Spacer(1, 0.2*cm))
 
